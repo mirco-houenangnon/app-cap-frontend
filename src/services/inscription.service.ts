@@ -4,8 +4,8 @@ import type { DashboardStats, GraphesData, AcademicYear, PendingStudentData } fr
 import { formatDateTimeForAPI } from '@/utils/date.utils'
 
 type NiveauOption = {
-  value: string
-  label: string
+  id: string
+  name: string
 }
 
 type NiveauxResponse = {

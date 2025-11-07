@@ -157,10 +157,11 @@ export interface PendingStudentData {
 
 // Period (période d'inscription)
 export interface Period {
-  type: 'depot' | 'reclamation';
-  start: string;
-  end: string;
-  filieres: string[];
+  id: number;
+  type: 'depot' | 'choix';
+  date_heure_debut: string;
+  date_heure_fin: string;
+  filieres: any[];
 }
 
 // Student list item (returned by students list API)
@@ -171,19 +172,27 @@ export interface StudentListItem {
   sexe: string;
   redoublant: string;
   dateNaissance: string;
+  email: string;
+  filiere: string;
+  niveau: string;
+  annee?: string;
+  entryDiploma?: string;
+  statut?: string;
+  telephone?: string;
   groupe?: string;
 }
 
 // Student details (returned by student details API)
 export interface StudentDetails extends StudentListItem {
-  filiere: string;
-  niveau: string;
+  // Inherits all fields from StudentListItem
+  // Override optional fields to clarify they may be null
   annee: string;
-  entryDiploma: string;
+  entryDiploma?: string;
   statut: string;
-  email: string;
-  telephone: string;
-  photo?: string;
+  telephone?: string | null;
+  lieuNaissance?: string;
+  photo?: string | null;
+  student_pending_student_id?: number;
 }
 
 // Filter option item (can be string or object with id and libelle/name/title)
@@ -200,5 +209,14 @@ export interface FilterOptions {
   filieres: Array<string | FilterOptionItem>;
   entryDiplomas: Array<string | FilterOptionItem>;
   redoublants: string[];
+  niveaux: Record<string, Array<string | FilterOptionItem>>;
+}
+
+// Filter options for pending students (includes statuts instead of redoublants)
+export interface PendingStudentsFilterOptions {
+  years: Array<string | FilterOptionItem>;
+  filieres: Array<string | FilterOptionItem>;
+  entryDiplomas: Array<string | FilterOptionItem>;
+  statuts: Array<{ value: string; label: string }>;
   niveaux: Record<string, Array<string | FilterOptionItem>>;
 }

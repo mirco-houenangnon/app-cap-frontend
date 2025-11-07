@@ -65,7 +65,7 @@ const useStudentsListData = () => {
     try {
       const details = await InscriptionService.getStudentDetails(studentId);
       setStudentDetails(details);
-      return { success: true };
+      return { success: true, data: details };
     } catch (error) {
       console.error('Erreur lors de la récupération des détails de l\'étudiant:', error);
       setError('Impossible de charger les détails de l\'étudiant.');
@@ -83,13 +83,20 @@ const useStudentsListData = () => {
       return { success: false };
     }
     try {
-      const response = await InscriptionService.exportList(type, selectedYear, selectedFiliere, selectedNiveau);
-      if (response.success) {
-        return { success: true, url: response.url };
-      } else {
-        setError('Échec de l\'export.');
-        return { success: false };
-      }
+      const blob = await InscriptionService.exportList(type, selectedYear, selectedFiliere, selectedNiveau);
+      // Create a download URL from the Blob
+      const url = window.URL.createObjectURL(blob);
+      // Create a temporary link and trigger download
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${type}_${selectedFiliere}_${selectedNiveau}_${selectedYear}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      // Clean up
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      return { success: true, url };
     } catch (error) {
       console.error('Erreur lors de l\'export:', error);
       setError('Une erreur est survenue lors de l\'export.');

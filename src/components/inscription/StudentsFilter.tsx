@@ -101,10 +101,34 @@ const StudentsFilter: React.FC<StudentsFilterProps> = ({
   // Helper pour convertir les niveaux en options Select
   const mapNiveauxToOptions = (niveaux: any[]): SelectOption[] => {
     if (!niveaux) return []
+    
     return niveaux.map((n) => {
-      if (typeof n === 'object' && n.label) {
-        return { value: String(n.value), label: n.label }
+      // Si c'est déjà une string (L1, L2, etc.)
+      if (typeof n === 'string') {
+        return { value: n, label: n }
       }
+      
+      // Si c'est un objet avec value/label du backend
+      if (typeof n === 'object' && n !== null) {
+        // Le backend renvoie {value: "L1", label: "Licence 1"}
+        if (n.value && n.label) {
+          return { value: String(n.value), label: String(n.label) }
+        }
+        
+        // Fallback pour autres structures
+        const code = n.code || n.id || n.value
+        const displayName = n.name || n.libelle || n.nom || n.label || n.title || code
+        
+        if (code && displayName) {
+          return { value: String(code), label: String(displayName) }
+        }
+        
+        if (displayName) {
+          return { value: String(displayName), label: String(displayName) }
+        }
+      }
+      
+      // Fallback
       return { value: String(n), label: String(n) }
     })
   }
@@ -148,7 +172,7 @@ const StudentsFilter: React.FC<StudentsFilterProps> = ({
   return (
     <>
       <CRow className="mb-3">
-        <CCol xs={12} md={showNiveau || showRedoublant ? 2 : 3}>
+        <CCol xs={12} md={showNiveau || showRedoublant ? 3 : 4}>
           <label className="form-label fw-semibold">Année Académique</label>
           <Select
             options={selectOptions.year}
@@ -160,7 +184,7 @@ const StudentsFilter: React.FC<StudentsFilterProps> = ({
         </CCol>
 
         {selectedFiliere !== undefined && (
-          <CCol xs={12} md={showNiveau || showRedoublant ? 2 : 3}>
+          <CCol xs={12} md={showNiveau || showRedoublant ? 3 : 4}>
             <label className="form-label fw-semibold">Filière</label>
             <Select
               options={selectOptions.filiere}
@@ -173,7 +197,7 @@ const StudentsFilter: React.FC<StudentsFilterProps> = ({
         )}
 
         {showNiveau && selectedNiveau !== undefined && (
-          <CCol xs={12} md={2}>
+          <CCol xs={12} md={3}>
             <label className="form-label fw-semibold">Niveau d'études</label>
             <Select
               options={selectOptions.niveau}
@@ -186,7 +210,7 @@ const StudentsFilter: React.FC<StudentsFilterProps> = ({
         )}
 
         {selectedEntryDiploma !== undefined && (
-          <CCol xs={12} md={showNiveau || showRedoublant ? 2 : 3}>
+          <CCol xs={12} md={showNiveau || showRedoublant ? 2 : 4}>
             <label className="form-label fw-semibold">Diplôme d'entrée</label>
             <Select
               options={selectOptions.entryDiploma}
@@ -199,7 +223,7 @@ const StudentsFilter: React.FC<StudentsFilterProps> = ({
         )}
 
         {showRedoublant && selectedRedoublant !== undefined && (
-          <CCol xs={12} md={2}>
+          <CCol xs={12} md={3}>
             <label className="form-label fw-semibold">Redoublant</label>
             <Select
               options={selectOptions.redoublant}

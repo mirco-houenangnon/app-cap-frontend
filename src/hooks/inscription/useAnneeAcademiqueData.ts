@@ -27,7 +27,7 @@ const useAnneeAcademiquesData = () => {
         // getFilieres peut retourner soit un tableau soit un objet avec data
         const filieresList = Array.isArray(filieresData) ? filieresData : (filieresData || []);
         setFilieres(filieresList);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Erreur lors du chargement des données:', error);
         setError('Impossible de charger les données.');
       } finally {
@@ -39,7 +39,12 @@ const useAnneeAcademiquesData = () => {
   }, []);
 
   // Fonction pour créer une nouvelle année académique
-  const createAcademicYear = async (yearStart: Date, yearEnd: Date, submissionStart?: Date | null, submissionEnd?: Date | null) => {
+  const createAcademicYear = async (
+    yearStart: Date, 
+    yearEnd: Date, 
+    submissionStart?: Date | null, 
+    submissionEnd?: Date | null
+  ): Promise<{ success: boolean; error?: any }> => {
     try {
       // Formater les dates au format ISO (YYYY-MM-DD) pour l'API
       const formatDateForAPI = (date: Date): string => {
@@ -76,7 +81,7 @@ const useAnneeAcademiquesData = () => {
         setError(errorMsg);
         return { success: false, error: errorMsg };
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erreur lors de la création de l\'année académique:', error);
       const errorMsg = error?.message || 'Une erreur est survenue lors de la création de l\'année académique.';
       setError(errorMsg);
@@ -85,9 +90,23 @@ const useAnneeAcademiquesData = () => {
   };
 
   // Fonction pour ajouter une période à une année académique
-  const addPeriod = async (yearId, type, startDate, startTime, endDate, endTime, selectedFilieres) => {
+  const addPeriod = async (
+    yearId: number | string, 
+    type: string, 
+    startDate: string, 
+    startTime: string, 
+    endDate: string, 
+    endTime: string, 
+    selectedFilieres: number[]
+  ): Promise<{ success: boolean; error?: any }> => {
     try {
-      const response = await InscriptionService.addPeriod(yearId, type, startDate, startTime, endDate, endTime, selectedFilieres);
+      // Convertir les strings en Date objects
+      const startDateObj = new Date(startDate);
+      const startTimeObj = new Date(`1970-01-01T${startTime}`);
+      const endDateObj = new Date(endDate);
+      const endTimeObj = new Date(`1970-01-01T${endTime}`);
+      
+      const response = await InscriptionService.addPeriod(Number(yearId), type, startDateObj, startTimeObj, endDateObj, endTimeObj, selectedFilieres);
       if (response.success) {
         return { success: true };
       } else {
@@ -104,7 +123,7 @@ const useAnneeAcademiquesData = () => {
   };
 
   // Fonction pour récupérer les périodes d'une année académique
-  const getPeriods = async (yearId: any) => {
+  const getPeriods = async (yearId: any): Promise<{ success: boolean; data: any[] }> => {
     try {
       const periodsData = await InscriptionService.getPeriods(yearId);
       // getPeriods peut retourner soit un tableau soit un objet
@@ -112,7 +131,7 @@ const useAnneeAcademiquesData = () => {
       
       if (!Array.isArray(periodsArray)) {
         console.error('periodsData is not an array:', periodsData);
-        return [];
+        return { success: false, data: [] };
       }
       
       // Formater les dates des périodes
@@ -121,11 +140,11 @@ const useAnneeAcademiquesData = () => {
         start: formatDateTime(period.start),
         end: formatDateTime(period.end),
       }));
-      return formattedPeriods || [];
-    } catch (error) {
+      return { success: true, data: formattedPeriods || [] };
+    } catch (error: any) {
       console.error('Erreur lors de la récupération des périodes:', error);
       setError('Impossible de charger les périodes.');
-      return [];
+      return { success: false, data: [] };
     }
   };
 

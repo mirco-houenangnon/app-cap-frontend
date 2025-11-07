@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import InscriptionService from '../../services/inscription.service.ts';
+import type { AcademicYear, PendingStudentData, PendingStudentsFilterOptions } from '../../types/inscription.types';
 
 // Types pour les retours de fonctions
 interface SuccessResult {
@@ -15,10 +16,10 @@ interface ErrorResult {
 type FunctionResult = SuccessResult | ErrorResult;
 
 const usePendingStudentsData = () => {
-  const [academicYears, setAcademicYears] = useState([]);
-  const [pendingStudents, setPendingStudents] = useState([]);
+  const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
+  const [pendingStudents, setPendingStudents] = useState<PendingStudentData[]>([]);
   const [graphesData, setGraphesData] = useState({ inscritsParFiliere: [], admis: 0, rejetes: 0 });
-  const [filterOptions, setFilterOptions] = useState({ filieres: [], years: [], entryDiplomas: [], statuts: [] });
+  const [filterOptions, setFilterOptions] = useState<PendingStudentsFilterOptions>({ filieres: [], years: [], entryDiplomas: [], statuts: [], niveaux: {} });
   const [selectedYear, setSelectedYear] = useState('2024-2025');
   const [selectedFiliere, setSelectedFiliere] = useState('all');
   const [selectedEntryDiploma, setSelectedEntryDiploma] = useState('all');
@@ -28,7 +29,7 @@ const usePendingStudentsData = () => {
   const [totalStudents, setTotalStudents] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -39,7 +40,7 @@ const usePendingStudentsData = () => {
         setAcademicYears(yearsData || []);
 
         const filterData = await InscriptionService.filterOptions();
-        setFilterOptions(filterData || { filieres: [], years: [], entryDiplomas: [], statuts: [] });
+        setFilterOptions(filterData || { filieres: [], years: [], entryDiplomas: [], statuts: [], niveaux: {} });
 
         const studentsData = await InscriptionService.pendingStudents({
           status: selectedStatut !== 'all' ? selectedStatut : undefined,
@@ -67,7 +68,7 @@ const usePendingStudentsData = () => {
   }, [selectedYear, selectedFiliere, selectedEntryDiploma, selectedStatut, currentPage, searchQuery]);
 
   // Fonction pour mettre à jour les pièces d'un étudiant
-  const updateStudentPieces = async (studentId, newPieces): Promise<FunctionResult> => {
+  const updateStudentPieces = async (studentId: number, newPieces: any): Promise<FunctionResult> => {
     try {
       const response = await InscriptionService.updatePieces(studentId, newPieces);
       setPendingStudents(prev =>
@@ -89,7 +90,7 @@ const usePendingStudentsData = () => {
       if (response.success) {
         setPendingStudents(prev =>
           prev.map(student => {
-            const studentData = studentsData.find(data => data.studentId === student.id);
+            const studentData = studentsData.find((data: any) => data.studentId === student.id);
             if (studentData) {
               return {
                 ...student,
