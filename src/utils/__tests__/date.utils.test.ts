@@ -119,7 +119,6 @@ describe('date.utils', () => {
   describe('addMonths', () => {
     it('devrait ajouter des mois à la date actuelle', () => {
       const result = addMonths(3)
-      const now = new Date()
       const expected = new Date()
       expected.setMonth(expected.getMonth() + 3)
       
@@ -128,7 +127,6 @@ describe('date.utils', () => {
 
     it('devrait soustraire des mois avec valeur négative', () => {
       const result = addMonths(-2)
-      const now = new Date()
       const expected = new Date()
       expected.setMonth(expected.getMonth() - 2)
       

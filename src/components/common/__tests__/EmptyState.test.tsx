@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import EmptyState from '../EmptyState'
-import { cilInfo } from '@coreui/icons'
 
 describe('EmptyState', () => {
   it('devrait afficher le titre et message par défaut', () => {
