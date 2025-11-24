@@ -32,6 +32,7 @@ interface PendingStudentsTableProps {
     field: 'exonere' | 'sponsorise',
     checked: boolean
   ) => void
+  onLevelChange: (studentId: number, level: string) => void
 }
 
 /**
@@ -49,6 +50,7 @@ const PendingStudentsTable: React.FC<PendingStudentsTableProps> = ({
   onOpinionChange,
   onCommentChange,
   onStatusChange,
+  onLevelChange,
 }) => {
   if (students.length === 0) {
     return (
@@ -80,6 +82,7 @@ const PendingStudentsTable: React.FC<PendingStudentsTableProps> = ({
           {/* Headers */}
           <CTableHeaderCell>N°</CTableHeaderCell>
           <CTableHeaderCell>Nom et Prénoms</CTableHeaderCell>
+          <CTableHeaderCell>Niveau</CTableHeaderCell>
           <CTableHeaderCell>Pièces</CTableHeaderCell>
           <CTableHeaderCell>
             {isSpecialFiliere
@@ -115,6 +118,7 @@ const PendingStudentsTable: React.FC<PendingStudentsTableProps> = ({
             onOpinionChange={onOpinionChange}
             onCommentChange={onCommentChange}
             onStatusChange={onStatusChange}
+            onLevelChange={onLevelChange}
           />
         ))}
       </CTableBody>

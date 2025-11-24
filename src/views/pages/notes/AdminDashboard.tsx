@@ -46,12 +46,49 @@ const AdminDashboard = () => {
   } = useAdminGrades()
 
   const { academicYears } = useAnneeAcademiquesData()
+  const [departments, setDepartments] = useState<any[]>([])
+  const [levels, setLevels] = useState<any[]>([])
+  const [cohorts, setCohorts] = useState<any[]>([])
 
   // États pour les filtres
   const [selectedAcademicYear, setSelectedAcademicYear] = useState<number | null>(null)
+  const [selectedCohort, setSelectedCohort] = useState<string | null>(null)
   const [selectedDepartment, setSelectedDepartment] = useState<number | null>(null)
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null)
   const [selectedProgram, setSelectedProgram] = useState<number | null>(null)
+
+  // Charger les filières et niveaux
+  useEffect(() => {
+    const loadFilters = async () => {
+      try {
+        const inscriptionService = (await import('@/services/inscription.service')).default
+        const [deptData, levelData] = await Promise.all([
+          inscriptionService.getFilieres(),
+          inscriptionService.getAllNiveaux()
+        ])
+        setDepartments(deptData || [])
+        setLevels(levelData || [])
+      } catch (err) {
+        console.error('Erreur chargement filtres:', err)
+      }
+    }
+    loadFilters()
+  }, [])
+
+  // Charger les cohortes quand l'année change
+  useEffect(() => {
+    if (!selectedAcademicYear) return
+    const loadCohorts = async () => {
+      try {
+        const inscriptionService = (await import('@/services/inscription.service')).default
+        const cohortData = await inscriptionService.getCohorts(selectedAcademicYear)
+        setCohorts(cohortData || [])
+      } catch (err) {
+        console.error('Erreur chargement cohortes:', err)
+      }
+    }
+    loadCohorts()
+  }, [selectedAcademicYear])
 
   // Options pour les sélecteurs
   const yearOptions = useMemo(() => {
@@ -61,26 +98,32 @@ const AdminDashboard = () => {
     }))
   }, [academicYears])
 
-  // Simuler les options de filières et niveaux (à remplacer par de vraies données)
-  const departmentOptions = [
-    { value: 1, label: 'Informatique' },
-    { value: 2, label: 'Génie Civil' },
-    { value: 3, label: 'Électronique' }
-  ]
+  const cohortOptions = useMemo(() => {
+    return cohorts.map((cohort: any) => {
+      const cohortValue = typeof cohort === 'string' ? cohort : (cohort.cohort || cohort.value || cohort)
+      return {
+        value: cohortValue,
+        label: cohortValue
+      }
+    })
+  }, [cohorts])
 
-  const levelOptions = [
-    { value: 'L1', label: 'Licence 1' },
-    { value: 'L2', label: 'Licence 2' },
-    { value: 'L3', label: 'Licence 3' },
-    { value: 'M1', label: 'Master 1' },
-    { value: 'M2', label: 'Master 2' }
-  ]
+  const departmentOptions = useMemo(() => {
+    return departments.map((dept: any) => ({
+      value: dept.id,
+      label: dept.name
+    }))
+  }, [departments])
+
+  const levelOptions = useMemo(() => {
+    return levels.map((level: any) => ({
+      value: level.value,
+      label: level.label
+    }))
+  }, [levels])
 
   const programOptions = [
-    { value: null, label: 'Tous les programmes' },
-    { value: 1, label: 'Programmation Web' },
-    { value: 2, label: 'Base de données' },
-    { value: 3, label: 'Réseaux' }
+    { value: null, label: 'Tous les programmes' }
   ]
 
   // Charger le dashboard au montage
@@ -100,26 +143,28 @@ const AdminDashboard = () => {
 
   // Charger les données filtrées
   useEffect(() => {
-    loadGradesByFilters({
-      academic_year_id: selectedAcademicYear || undefined,
-      department_id: selectedDepartment || undefined,
-      level: selectedLevel || undefined,
-      program_id: selectedProgram || undefined
-    })
-  }, [selectedAcademicYear, selectedDepartment, selectedLevel, selectedProgram])
+    if (!selectedAcademicYear) return
+    
+    const filters: any = { academic_year_id: selectedAcademicYear }
+    if (selectedCohort) filters.cohort = selectedCohort
+    if (selectedDepartment) filters.department_id = selectedDepartment
+    if (selectedLevel) filters.level = selectedLevel
+    if (selectedProgram) filters.program_id = selectedProgram
+    
+    loadGradesByFilters(filters)
+  }, [selectedAcademicYear, selectedCohort, selectedDepartment, selectedLevel, selectedProgram])
 
   const handleExport = async (format: 'pdf' | 'excel') => {
-    if (!selectedAcademicYear || !selectedDepartment) {
-      alert('Veuillez sélectionner une année académique et une filière')
+    if (!selectedAcademicYear) {
+      alert('Veuillez sélectionner une année académique')
       return
     }
 
-    const result = await exportByDepartment({
-      academic_year_id: selectedAcademicYear,
-      department_id: selectedDepartment,
-      level: selectedLevel || undefined,
-      format
-    })
+    const params: any = { academic_year_id: selectedAcademicYear, format }
+    if (selectedDepartment) params.department_id = selectedDepartment
+    if (selectedLevel) params.level = selectedLevel
+
+    const result = await exportByDepartment(params)
 
     if (result.success) {
       console.log('Export réussi:', result.data)
@@ -142,31 +187,31 @@ const AdminDashboard = () => {
       </CRow>
 
       {/* Statistiques */}
-      {dashboardStats && (
+      {gradesByFilters && gradesByFilters.length > 0 && (
         <CRow className="mb-4">
           <StatsCard
-            value={dashboardStats.total_evaluations}
-            label="Total Évaluations"
-            icon={cilBook}
+            value={gradesByFilters.length}
+            label="Total Étudiants"
+            icon={cilPeople}
             color="primary"
           />
           <StatsCard
-            value={dashboardStats.completed_evaluations}
-            label="Évaluations Complètes"
+            value={gradesByFilters.filter((s: any) => s.validated).length}
+            label="Étudiants Validés"
             icon={cilCheckCircle}
             color="success"
           />
           <StatsCard
-            value={dashboardStats.pending_evaluations}
-            label="En Attente"
-            icon={cilChart}
-            color="warning"
+            value={gradesByFilters.filter((s: any) => s.programs_count).reduce((sum: number, s: any) => sum + (s.programs_count || 0), 0)}
+            label="Total Programmes"
+            icon={cilBook}
+            color="info"
           />
           <StatsCard
-            value={`${dashboardStats.average_success_rate}%`}
-            label="Taux de Réussite Moyen"
-            icon={cilPeople}
-            color="info"
+            value={`${((gradesByFilters.filter((s: any) => s.validated).length / gradesByFilters.length) * 100).toFixed(1)}%`}
+            label="Taux de Réussite"
+            icon={cilChart}
+            color="warning"
           />
         </CRow>
       )}
@@ -178,15 +223,30 @@ const AdminDashboard = () => {
           <strong>Filtres</strong>
         </CCardHeader>
         <CCardBody>
-          <CRow>
+          <CRow className="mb-3">
             <CCol md={3}>
               <label className="form-label">Année Académique</label>
               <Select
                 options={yearOptions}
                 value={yearOptions.find(opt => opt.value === selectedAcademicYear)}
-                onChange={(option: any) => setSelectedAcademicYear(option?.value || null)}
+                onChange={(option: any) => {
+                  setSelectedAcademicYear(option?.value || null)
+                  setSelectedCohort(null)
+                }}
                 placeholder="Sélectionner..."
                 isSearchable
+              />
+            </CCol>
+            <CCol md={3}>
+              <label className="form-label">Cohorte</label>
+              <Select
+                options={cohortOptions}
+                value={cohortOptions.find(opt => opt.value === selectedCohort)}
+                onChange={(option: any) => setSelectedCohort(option?.value || null)}
+                placeholder="Sélectionner..."
+                isSearchable
+                isClearable
+                isDisabled={!selectedAcademicYear}
               />
             </CCol>
             <CCol md={3}>
@@ -209,16 +269,6 @@ const AdminDashboard = () => {
                 placeholder="Sélectionner..."
                 isSearchable
                 isClearable
-              />
-            </CCol>
-            <CCol md={3}>
-              <label className="form-label">Programme</label>
-              <Select
-                options={programOptions}
-                value={programOptions.find(opt => opt.value === selectedProgram)}
-                onChange={(option: any) => setSelectedProgram(option?.value || null)}
-                placeholder="Sélectionner..."
-                isSearchable
               />
             </CCol>
           </CRow>
@@ -267,50 +317,41 @@ const AdminDashboard = () => {
                   <CTableRow>
                     <CTableHeaderCell>Matricule</CTableHeaderCell>
                     <CTableHeaderCell>Nom et Prénoms</CTableHeaderCell>
-                    <CTableHeaderCell className="text-center">Prog. 1</CTableHeaderCell>
-                    <CTableHeaderCell className="text-center">Prog. 2</CTableHeaderCell>
-                    <CTableHeaderCell className="text-center">Prog. 3</CTableHeaderCell>
+                    <CTableHeaderCell className="text-center">Programmes</CTableHeaderCell>
                     <CTableHeaderCell className="text-center">Moyenne Générale</CTableHeaderCell>
+                    <CTableHeaderCell className="text-center">Statut</CTableHeaderCell>
                   </CTableRow>
                 </CTableHead>
                 <CTableBody>
-                  {/* Données simulées */}
-                  <CTableRow>
-                    <CTableDataCell>2024001</CTableDataCell>
-                    <CTableDataCell>
-                      <strong>DUPONT Jean</strong>
-                    </CTableDataCell>
-                    <CTableDataCell className="text-center">
-                      <CBadge color="success">14.5</CBadge>
-                    </CTableDataCell>
-                    <CTableDataCell className="text-center">
-                      <CBadge color="info">12.0</CBadge>
-                    </CTableDataCell>
-                    <CTableDataCell className="text-center">
-                      <CBadge color="success">16.2</CBadge>
-                    </CTableDataCell>
-                    <CTableDataCell className="text-center">
-                      <CBadge color="success">14.2</CBadge>
-                    </CTableDataCell>
-                  </CTableRow>
-                  <CTableRow>
-                    <CTableDataCell>2024002</CTableDataCell>
-                    <CTableDataCell>
-                      <strong>MARTIN Marie</strong>
-                    </CTableDataCell>
-                    <CTableDataCell className="text-center">
-                      <CBadge color="info">11.5</CBadge>
-                    </CTableDataCell>
-                    <CTableDataCell className="text-center">
-                      <CBadge color="danger">8.0</CBadge>
-                    </CTableDataCell>
-                    <CTableDataCell className="text-center">
-                      <CBadge color="success">13.2</CBadge>
-                    </CTableDataCell>
-                    <CTableDataCell className="text-center">
-                      <CBadge color="info">10.9</CBadge>
-                    </CTableDataCell>
-                  </CTableRow>
+                  {gradesByFilters && gradesByFilters.length > 0 ? (
+                    gradesByFilters.map((student: any) => (
+                      <CTableRow key={student.id}>
+                        <CTableDataCell>{student.matricule || 'N/A'}</CTableDataCell>
+                        <CTableDataCell>
+                          <strong>{student.nom} {student.prenoms}</strong>
+                        </CTableDataCell>
+                        <CTableDataCell className="text-center">
+                          {student.programs_count || 0}
+                        </CTableDataCell>
+                        <CTableDataCell className="text-center">
+                          <CBadge color={student.average >= 12 ? 'success' : student.average >= 10 ? 'info' : 'danger'}>
+                            {student.average ? student.average.toFixed(2) : '-'}
+                          </CBadge>
+                        </CTableDataCell>
+                        <CTableDataCell className="text-center">
+                          <CBadge color={student.validated ? 'success' : 'danger'}>
+                            {student.validated ? 'Validé' : 'Non validé'}
+                          </CBadge>
+                        </CTableDataCell>
+                      </CTableRow>
+                    ))
+                  ) : (
+                    <CTableRow>
+                      <CTableDataCell colSpan={5} className="text-center">
+                        {loading ? 'Chargement...' : 'Aucune donnée disponible. Sélectionnez des filtres.'}
+                      </CTableDataCell>
+                    </CTableRow>
+                  )}
                 </CTableBody>
               </CTable>
             </div>

@@ -6,6 +6,7 @@ import type { AcademicYear, PendingStudentData, PendingStudentsFilterOptions } f
 interface SuccessResult {
   success: true;
   url?: string;
+  filename?: string;
 }
 
 interface ErrorResult {
@@ -19,10 +20,11 @@ const usePendingStudentsData = () => {
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
   const [pendingStudents, setPendingStudents] = useState<PendingStudentData[]>([]);
   const [graphesData] = useState({ inscritsParFiliere: [], admis: 0, rejetes: 0 });
-  const [filterOptions, setFilterOptions] = useState<PendingStudentsFilterOptions>({ filieres: [], years: [], entryDiplomas: [], statuts: [], niveaux: [] });
+  const [filterOptions, setFilterOptions] = useState<PendingStudentsFilterOptions>({ filieres: [], years: [], entryDiplomas: [], statuts: [], niveaux: [], cohorts: [] });
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedFiliere, setSelectedFiliere] = useState('all');
   const [selectedEntryDiploma, setSelectedEntryDiploma] = useState('all');
+  const [selectedCohort, setSelectedCohort] = useState('all');
   const [selectedStatut, setSelectedStatut] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -48,8 +50,8 @@ const usePendingStudentsData = () => {
           }
         }
 
-        const filterData = await InscriptionService.filterOptions();
-        setFilterOptions(filterData || { filieres: [], years: [], entryDiplomas: [], statuts: [], niveaux: [] });
+        const filterData = await InscriptionService.filterOptions(selectedYear !== 'all' ? selectedYear : undefined);
+        setFilterOptions(filterData || { filieres: [], years: [], entryDiplomas: [], statuts: [], niveaux: [], cohorts: [] });
 
         const params: any = { page: currentPage };
         
@@ -72,6 +74,10 @@ const usePendingStudentsData = () => {
           params.status = selectedStatut;
         }
         
+        if (selectedCohort !== 'all' && selectedCohort) {
+          params.cohort = selectedCohort;
+        }
+        
         if (searchQuery) {
           params.search = searchQuery;
         }
@@ -92,7 +98,20 @@ const usePendingStudentsData = () => {
     };
 
     fetchData();
-  }, [selectedYear, selectedFiliere, selectedEntryDiploma, selectedStatut, currentPage, searchQuery]);
+  }, [selectedYear, selectedFiliere, selectedEntryDiploma, selectedCohort, selectedStatut, currentPage, searchQuery]);
+
+  // Recharger les cohortes quand l'année change
+  useEffect(() => {
+    const fetchCohorts = async () => {
+      if (selectedYear !== 'all') {
+        const filterData = await InscriptionService.filterOptions(selectedYear);
+        setFilterOptions(prev => ({ ...prev, cohorts: filterData.cohorts || [] }));
+      } else {
+        setFilterOptions(prev => ({ ...prev, cohorts: [] }));
+      }
+    };
+    fetchCohorts();
+  }, [selectedYear]);
 
   // Fonction pour mettre à jour les pièces d'un étudiant
   const updateStudentPieces = async (studentId: number, newPieces: any): Promise<FunctionResult> => {
@@ -155,18 +174,19 @@ const usePendingStudentsData = () => {
   // Fonction pour exporter les données
   const exportData = async (format: any): Promise<FunctionResult> => {
     try {
-      const endpoint = `/inscription/export/${format}?year=${selectedYear}&filiere=${selectedFiliere}`;
+      const endpoint = `/inscription/export/${format}?year=${selectedYear}&filiere=${selectedFiliere}&cohort=${selectedCohort}`;
       const response = await InscriptionService.exportData(endpoint);
       if (response.success) {
-        return { success: true, url: response.url };
+        return { success: true, url: response.url, filename: response.filename };
       } else {
         setError('Échec de l\'export.');
         return { success: false, error: 'Échec de l\'export.' };
       }
     } catch (error: any) {
       console.error('Erreur lors de l\'export:', error);
-      setError('Une erreur est survenue lors de l\'export.');
-      return { success: false, error: error?.message || String(error) };
+      const errorMessage = error?.message || String(error);
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
     }
   };
 
@@ -185,6 +205,23 @@ const usePendingStudentsData = () => {
     }
   };
 
+  // Fonction pour mettre à jour le niveau d'études
+  const updateStudentLevel = async (studentId: number, level: string): Promise<FunctionResult> => {
+    try {
+      await InscriptionService.updateLevel(studentId, level);
+      setPendingStudents(prev =>
+        prev.map(student =>
+          student.id === studentId ? { ...student, level } : student
+        )
+      );
+      return { success: true };
+    } catch (error: any) {
+      console.error('Erreur lors de la mise à jour du niveau:', error);
+      setError('Impossible de mettre à jour le niveau.');
+      return { success: false, error: error?.message || String(error) };
+    }
+  };
+
   return {
     academicYears,
     pendingStudents,
@@ -196,6 +233,8 @@ const usePendingStudentsData = () => {
     setSelectedFiliere,
     selectedEntryDiploma,
     setSelectedEntryDiploma,
+    selectedCohort,
+    setSelectedCohort,
     selectedStatut,
     setSelectedStatut,
     searchQuery,
@@ -210,6 +249,7 @@ const usePendingStudentsData = () => {
     sendStudentMail,
     exportData,
     updateStudentStatus,
+    updateStudentLevel,
   };
 };
 

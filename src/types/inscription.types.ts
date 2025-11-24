@@ -158,10 +158,7 @@ export interface PendingStudentData {
 
 // Period (période d'inscription)
 export interface Period {
-  id: number;
-  type: 'depot' | 'choix';
-  date_heure_debut: string;
-  date_heure_fin: string;
+  type: 'depot' | 'reclamation';
   start: string;
   end: string;
   filieres: any[];
@@ -212,6 +209,7 @@ export interface FilterOptions {
   entryDiplomas: Array<string | FilterOptionItem>;
   redoublants: string[];
   niveaux: Array<{ value: string; label: string }>;
+  cohorts: Array<{ value: string; label: string }>;
 }
 
 // Filter options for pending students (includes statuts instead of redoublants)
@@ -221,4 +219,5 @@ export interface PendingStudentsFilterOptions {
   entryDiplomas: Array<string | FilterOptionItem>;
   statuts: Array<{ value: string; label: string }>;
   niveaux: Array<{ value: string; label: string }>;
+  cohorts: Array<{ value: string; label: string }>;
 }

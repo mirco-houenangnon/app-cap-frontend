@@ -1,4 +1,5 @@
 export { default as useAnneeAcademiqueData } from './useAnneeAcademiqueData'
+export { default as useCohortsData } from './useCohortsData'
 export { default as useDashboardData } from './useDashboardData'
 export { default as useGroupCreation } from './useGroupCreation'
 export { default as usePendingSudentsData } from './usePendingSudentsData'

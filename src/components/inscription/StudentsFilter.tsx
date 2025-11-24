@@ -13,6 +13,7 @@ interface StudentsFilterProps {
     filieres?: any[]
     entryDiplomas?: any[]
     niveaux?: Array<{ value: string; label: string }>
+    cohorts?: Array<{ value: string; label: string }>
     statuts?: any[]
   }
   selectedYear: string
@@ -21,6 +22,8 @@ interface StudentsFilterProps {
   setSelectedFiliere?: (value: string) => void  // ← Optional
   selectedNiveau?: string
   setSelectedNiveau?: (value: string) => void
+  selectedCohort?: string
+  setSelectedCohort?: (value: string) => void
   selectedEntryDiploma?: string
   setSelectedEntryDiploma?: (value: string) => void  // ← Optional
   selectedRedoublant?: string
@@ -33,6 +36,7 @@ interface StudentsFilterProps {
   onSearchChange?: (e: React.ChangeEvent<HTMLInputElement>) => void
   showSearch?: boolean
   showNiveau?: boolean
+  showCohort?: boolean
   showRedoublant?: boolean
   showStatut?: boolean
 }
@@ -46,6 +50,7 @@ const StudentsFilter: React.FC<StudentsFilterProps> = ({
   selectedYear,
   selectedFiliere,
   selectedNiveau,
+  selectedCohort,
   selectedEntryDiploma,
   selectedRedoublant,
   selectedStatut,
@@ -54,6 +59,7 @@ const StudentsFilter: React.FC<StudentsFilterProps> = ({
   onSearchChange,
   showSearch = true,
   showNiveau = false,
+  showCohort = false,
   showRedoublant = false,
   showStatut = false,
 }) => {
@@ -132,6 +138,10 @@ const StudentsFilter: React.FC<StudentsFilterProps> = ({
       { value: 'all', label: 'Tous les niveaux' },
       ...mapNiveauxToOptions(Array.isArray(filterOptions.niveaux) ? filterOptions.niveaux : []),
     ],
+    cohort: [
+      { value: 'all', label: 'Toutes les cohortes' },
+      ...(Array.isArray(filterOptions.cohorts) ? filterOptions.cohorts : []),
+    ],
   }
 
   return (
@@ -169,6 +179,19 @@ const StudentsFilter: React.FC<StudentsFilterProps> = ({
               value={selectOptions.niveau.find((opt) => opt.value === selectedNiveau)}
               onChange={(option) => onFilterChange?.('niveau', option)}
               placeholder="Sélectionner un niveau..."
+              isClearable
+            />
+          </CCol>
+        )}
+
+        {showCohort && selectedCohort !== undefined && (
+          <CCol xs={12} md={3}>
+            <label className="form-label fw-semibold">Cohorte</label>
+            <Select
+              options={selectOptions.cohort}
+              value={selectOptions.cohort.find((opt) => opt.value === selectedCohort)}
+              onChange={(option) => onFilterChange?.('cohort', option)}
+              placeholder="Sélectionner une cohorte..."
               isClearable
             />
           </CCol>

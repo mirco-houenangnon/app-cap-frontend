@@ -13,6 +13,7 @@ interface UseGroupCreationProps {
   selectedNiveau: string
   selectedEntryDiploma: string
   selectedRedoublant: string
+  selectedCohort: string
   filterOptions: any
 }
 
@@ -43,6 +44,7 @@ const useGroupCreation = ({
   selectedNiveau,
   selectedEntryDiploma,
   selectedRedoublant,
+  selectedCohort,
   filterOptions,
 }: UseGroupCreationProps): UseGroupCreationReturn => {
   const [groups, setGroups] = useState<Group[]>([])
@@ -71,7 +73,8 @@ const useGroupCreation = ({
         selectedNiveau,
         1,
         '',
-        1000
+        1000,
+        selectedCohort
       )
       const allStudents = response.data || []
       const approvedStudents = allStudents.filter((s: any) => s.student_id !== null)
@@ -98,7 +101,7 @@ const useGroupCreation = ({
     } finally {
       setLoading(false)
     }
-  }, [selectedYear, selectedFiliere, selectedNiveau, selectedEntryDiploma, selectedRedoublant])
+  }, [selectedYear, selectedFiliere, selectedNiveau, selectedEntryDiploma, selectedRedoublant, selectedCohort])
 
   const selectStudent = useCallback((studentId: number) => {
     setSelectedStudents((prev) =>
@@ -200,6 +203,7 @@ const useGroupCreation = ({
           academic_year_id: academicYearIdNum,
           department_id: departmentIdNum,
           study_level: selectedNiveau,
+          cohort: selectedCohort,
           replace_existing: true,
           groups: groupsToSave.map((g) => ({
             name: g.name,

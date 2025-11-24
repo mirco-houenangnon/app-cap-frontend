@@ -41,6 +41,7 @@ import {
 } from '@coreui/icons'
 import { usePrograms } from '@/hooks/cours'
 import SearchableSelect from '@/components/forms/SearchableSelect'
+import CoursService from '@/services/cours.service'
 import type { Program } from '@/types/cours.types'
 
 const Programs: React.FC = () => {
@@ -65,6 +66,7 @@ const Programs: React.FC = () => {
   const [formData, setFormData] = useState({
     class_group_id: '',
     course_element_professor_id: '',
+    semester: '1',
   })
   const [searchTerm, setSearchTerm] = useState('')
   const [classFilter, setClassFilter] = useState('')
@@ -77,12 +79,14 @@ const Programs: React.FC = () => {
       setFormData({
         class_group_id: program.class_group_id.toString(),
         course_element_professor_id: program.course_element_professor_id.toString(),
+        semester: (program as any).semester?.toString() || '1',
       })
     } else {
       setEditingProgram(null)
       setFormData({
         class_group_id: '',
         course_element_professor_id: '',
+        semester: '1',
       })
     }
     setShowModal(true)
@@ -94,6 +98,7 @@ const Programs: React.FC = () => {
     setFormData({
       class_group_id: '',
       course_element_professor_id: '',
+      semester: '1',
     })
   }
 
@@ -110,11 +115,13 @@ const Programs: React.FC = () => {
         await updateProgram(editingProgram.id, data)
         setAlert({ type: 'success', message: 'Programme mis à jour avec succès!' })
       } else {
+        const selectedClass = classGroups.find(g => g.id === parseInt(formData.class_group_id))
         const data = {
           class_group_id: parseInt(formData.class_group_id),
           course_element_professor_id: parseInt(formData.course_element_professor_id),
-          academic_year_id: 1, // TODO: Get from context or form
-          weighting: { CC: 30, TP: 20, EXAMEN: 50 },
+          academic_year_id: selectedClass?.academic_year?.id || 1,
+          semester: parseInt(formData.semester),
+          weighting: {},
         }
         await createProgram(data)
         setAlert({ type: 'success', message: 'Programme créé avec succès!' })
@@ -137,6 +144,36 @@ const Programs: React.FC = () => {
       } catch (error) {
         console.error('Erreur handleDelete:', error)
         setAlert({ type: 'danger', message: 'Erreur lors de la suppression. Veuillez réessayer.' })
+        setTimeout(() => setAlert(null), 5000)
+      }
+    }
+  }
+
+  const handleRenewProgram = async (program: Program) => {
+    // TODO: Implémenter avec SweetAlert2 quand disponible
+    const confirmed = window.confirm(
+      `Voulez-vous reconduire ce programme pour la prochaine année académique ?\n\n` +
+      `Classe: ${program.class_group?.department?.name} - Niveau ${program.class_group?.study_level}\n` +
+      `Cours: ${program.course_element_professor?.course_element?.name}\n` +
+      `Professeur: ${program.course_element_professor?.professor?.full_name}`
+    )
+
+    if (confirmed) {
+      try {
+        // TODO: Décommenter quand la logique backend sera implémentée
+        await CoursService.renewProgram(program.id)
+        setAlert({ 
+          type: 'success', 
+          message: 'Programme reconduit avec succès pour la prochaine année académique!' 
+        })
+        setTimeout(() => setAlert(null), 5000)
+      } catch (error: any) {
+        console.error('Erreur handleRenewProgram:', error)
+        const errorMessage = error?.response?.data?.message || 'Erreur lors de la reconduction. Veuillez réessayer.'
+        setAlert({ 
+          type: 'danger', 
+          message: errorMessage
+        })
         setTimeout(() => setAlert(null), 5000)
       }
     }
@@ -247,7 +284,8 @@ const Programs: React.FC = () => {
                     <CTableHeaderCell>Classe</CTableHeaderCell>
                     <CTableHeaderCell>Cours (ECUE)</CTableHeaderCell>
                     <CTableHeaderCell>Professeur</CTableHeaderCell>
-                    <CTableHeaderCell>Pondération</CTableHeaderCell>
+                    <CTableHeaderCell>Semestre</CTableHeaderCell>
+                    <CTableHeaderCell>Statut</CTableHeaderCell>
                     <CTableHeaderCell>Date</CTableHeaderCell>
                     <CTableHeaderCell>Actions</CTableHeaderCell>
                   </CTableRow>
@@ -255,13 +293,13 @@ const Programs: React.FC = () => {
                 <CTableBody>
                   {loading ? (
                     <CTableRow>
-                      <CTableDataCell colSpan={6} className="text-center">
+                      <CTableDataCell colSpan={7} className="text-center">
                         Chargement...
                       </CTableDataCell>
                     </CTableRow>
                   ) : programs.length === 0 ? (
                     <CTableRow>
-                      <CTableDataCell colSpan={6} className="text-center text-muted">
+                      <CTableDataCell colSpan={7} className="text-center text-muted">
                         {searchTerm || classFilter ? 'Aucun programme ne correspond aux filtres' : 'Aucun programme trouvé'}
                       </CTableDataCell>
                     </CTableRow>
@@ -271,25 +309,34 @@ const Programs: React.FC = () => {
                         <CTableDataCell>
                           <CBadge color="primary">
                             <CIcon icon={cilSchool} className="me-1" size="sm" />
-                            {program.class_group?.name}
+                            {program.class_group?.department?.name} - Niveau {program.class_group?.study_level} {(program.class_group as any)?.group_name ? `(${(program.class_group as any).group_name})` : ''}
                           </CBadge>
                         </CTableDataCell>
                         <CTableDataCell>
                           <div>
-                            <CBadge color="info">{program.course_element?.code}</CBadge>
+                            <CBadge color="info">{program.course_element_professor?.course_element?.code}</CBadge>
                             <div className="small text-muted">
-                              {program.course_element?.name}
+                              {program.course_element_professor?.course_element?.name}
                             </div>
                           </div>
                         </CTableDataCell>
                         <CTableDataCell>
                           <CBadge color="success">
                             <CIcon icon={cilUser} className="me-1" size="sm" />
-                            {program.professor?.full_name}
+                            {program.course_element_professor?.professor?.full_name}
                           </CBadge>
                         </CTableDataCell>
                         <CTableDataCell>
-                          {renderWeightingBadgesLocal(program.weighting)}
+                          <CBadge color={(program as any).semester === 1 ? "warning" : "info"}>
+                            {(program as any).semester === 1 ? 'Semestre Impair' : 'Semestre Pair'}
+                          </CBadge>
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          {(program.academic_year as any)?.is_current ? (
+                            <CBadge color="success">Actif</CBadge>
+                          ) : (
+                            <CBadge color="secondary">Archivé</CBadge>
+                          )}
                         </CTableDataCell>
                         <CTableDataCell>
                           {new Date(program.created_at).toLocaleDateString('fr-FR')}
@@ -306,6 +353,15 @@ const Programs: React.FC = () => {
                                 <CIcon icon={cilPencil} className="me-2" />
                                 Modifier
                               </CDropdownItem>
+                              {(program.academic_year as any)?.is_current && (
+                                <CDropdownItem
+                                  onClick={() => handleRenewProgram(program)}
+                                  className="text-primary"
+                                >
+                                  <CIcon icon={cilReload} className="me-2" />
+                                  Reconduire
+                                </CDropdownItem>
+                              )}
                               <CDropdownItem
                                 onClick={() => handleDelete(program)}
                                 className="text-danger"
@@ -356,6 +412,18 @@ const Programs: React.FC = () => {
               placeholder="Sélectionner une association"
               required
             />
+            <div className="mb-3">
+              <label htmlFor="semester" className="form-label">Semestre</label>
+              <CFormSelect
+                id="semester"
+                value={formData.semester}
+                onChange={(e) => setFormData({ ...formData, semester: e.target.value })}
+                required
+              >
+                <option value="1">Semestre Impair</option>
+                <option value="2">Semestre Pair</option>
+              </CFormSelect>
+            </div>
           </CModalBody>
           <CModalFooter>
             <CButton color="secondary" onClick={handleCloseModal}>

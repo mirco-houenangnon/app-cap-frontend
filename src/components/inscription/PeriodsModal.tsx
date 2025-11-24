@@ -34,14 +34,14 @@ const PeriodsModal: React.FC<PeriodsModalProps> = ({
   )
 
   const getPeriodTypeLabel = (type: string) => {
-    return type === 'depot' ? 'Dépôt de dossiers' : 'Choix de filière'
+    return type === 'depot' ? 'Dépôt de dossiers' : 'Réclamation'
   }
 
   const getPeriodTypeBadge = (type: string) => {
     return type === 'depot' ? (
       <CBadge color="primary">Dépôt</CBadge>
     ) : (
-      <CBadge color="info">Choix</CBadge>
+      <CBadge color="warning">Réclamation</CBadge>
     )
   }
 
@@ -70,8 +70,8 @@ const PeriodsModal: React.FC<PeriodsModalProps> = ({
             </CAlert>
           ) : (
             <CListGroup>
-              {periods.map((period) => (
-                <CListGroupItem key={period.id}>
+              {periods.map((period, index) => (
+                <CListGroupItem key={index}>
                   <div className="d-flex justify-content-between align-items-start">
                     <div className="flex-grow-1">
                       <div className="mb-2">

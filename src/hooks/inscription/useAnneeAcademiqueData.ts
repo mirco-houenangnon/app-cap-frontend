@@ -134,13 +134,8 @@ const useAnneeAcademiquesData = () => {
         return { success: false, data: [] };
       }
       
-      // Formater les dates des périodes
-      const formattedPeriods = periodsArray.map(period => ({
-        ...period,
-        start: formatDateTime(period.start),
-        end: formatDateTime(period.end),
-      }));
-      return { success: true, data: formattedPeriods || [] };
+      // Les dates sont déjà formatées par le backend, pas besoin de les reformater
+      return { success: true, data: periodsArray || [] };
     } catch (error: any) {
       console.error('Erreur lors de la récupération des périodes:', error);
       setError('Impossible de charger les périodes.');

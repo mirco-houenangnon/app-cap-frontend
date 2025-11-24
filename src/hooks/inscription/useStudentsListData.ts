@@ -5,12 +5,13 @@ import { StudentListItem, StudentDetails, FilterOptions } from '../../types/insc
 
 const useStudentsListData = () => {
   const [students, setStudents] = useState<StudentListItem[]>([]);
-  const [filterOptions, setFilterOptions] = useState<FilterOptions>({ years: [], filieres: [], entryDiplomas: [], redoublants: ['all', 'oui', 'non'], niveaux: [] });
+  const [filterOptions, setFilterOptions] = useState<FilterOptions>({ years: [], filieres: [], entryDiplomas: [], redoublants: ['all', 'oui', 'non'], niveaux: [], cohorts: [] });
   const [selectedYear, setSelectedYear] = useState('all');
   const [selectedFiliere, setSelectedFiliere] = useState('all');
   const [selectedEntryDiploma, setSelectedEntryDiploma] = useState('all');
   const [selectedRedoublant, setSelectedRedoublant] = useState('all');
   const [selectedNiveau, setSelectedNiveau] = useState('all');
+  const [selectedCohort, setSelectedCohort] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -23,13 +24,14 @@ const useStudentsListData = () => {
       setLoading(true);
       setError(null);
       try {
-        const options = await InscriptionService.filterOptions();
+        const options = await InscriptionService.filterOptions(selectedYear !== 'all' ? selectedYear : undefined);
         
         setFilterOptions({
           years: options.years || [],
           filieres: options.filieres || [],
           entryDiplomas: options.entryDiplomas || [],
           niveaux: options.niveaux || [],
+          cohorts: options.cohorts || [],
           redoublants: ['all', 'oui', 'non'],
         });
 
@@ -40,7 +42,9 @@ const useStudentsListData = () => {
           selectedRedoublant,
           selectedNiveau,
           currentPage,
-          searchQuery
+          searchQuery,
+          undefined,
+          selectedCohort
         );
         setStudents(response.data || []);
         setTotalPages(response.totalPages || 1);
@@ -54,7 +58,7 @@ const useStudentsListData = () => {
       }
     };
     fetchData();
-  }, [selectedYear, selectedFiliere, selectedEntryDiploma, selectedRedoublant, selectedNiveau, currentPage, searchQuery]);
+  }, [selectedYear, selectedFiliere, selectedEntryDiploma, selectedRedoublant, selectedNiveau, selectedCohort, currentPage, searchQuery]);
 
   // Réinitialiser le niveau si la filière change
   useEffect(() => {
@@ -83,7 +87,7 @@ const useStudentsListData = () => {
       return { success: false };
     }
     try {
-      const blob = await InscriptionService.exportList(type, selectedYear, selectedFiliere, selectedNiveau) as unknown as Blob;
+      const blob = await InscriptionService.exportList(type, selectedYear, selectedFiliere, selectedNiveau, selectedCohort || 'all') as unknown as Blob;
       // Create a download URL from the Blob
       const url = window.URL.createObjectURL(blob);
       // Create a temporary link and trigger download
@@ -135,6 +139,8 @@ const useStudentsListData = () => {
     setSelectedRedoublant,
     selectedNiveau,
     setSelectedNiveau,
+    selectedCohort,
+    setSelectedCohort,
     searchQuery,
     setSearchQuery,
     currentPage,

@@ -35,7 +35,8 @@ import {
   cilSettings,
   cilCloudDownload,
   cilCheckCircle,
-  cilWarning
+  cilWarning,
+  cilX
 } from '@coreui/icons'
 import { LoadingSpinner } from '@/components'
 import useProfessorGrades from '@/hooks/notes/useProfessorGrades'
@@ -53,6 +54,7 @@ const GradeSheet = () => {
     duplicateGrade,
     setWeighting,
     exportGradeSheet,
+    deleteEvaluation,
     areAllGradesCompleted,
     getCompletionPercentage,
     setError
@@ -61,12 +63,15 @@ const GradeSheet = () => {
   const [showWeightingModal, setShowWeightingModal] = useState(false)
   const [weightingValues, setWeightingValues] = useState<number[]>([])
   const [showDuplicateModal, setShowDuplicateModal] = useState(false)
-  const [duplicateValue, setDuplicateValue] = useState<number>(-1)
   const [duplicateColumn, setDuplicateColumn] = useState<number>(0)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleteColumn, setDeleteColumn] = useState<number>(0)
+  const [deleteIsRetake, setDeleteIsRetake] = useState(false)
+  const [localGrades, setLocalGrades] = useState<Record<string, number>>({})
 
   useEffect(() => {
     if (programId) {
-      loadGradeSheet(parseInt(programId))
+      loadGradeSheet(programId)
     }
   }, [programId])
 
@@ -81,14 +86,25 @@ const GradeSheet = () => {
     position: number,
     value: string
   ) => {
-    const numValue = parseFloat(value)
-    if (isNaN(numValue) || numValue < -1 || numValue > 20) return
-
-    await updateGrade(studentId, parseInt(programId!), position, numValue)
+    const key = `${studentId}-${position}`
+    const numValue = value === '' ? -1 : parseFloat(value)
+    
+    if (value !== '' && (isNaN(numValue) || numValue < -1 || numValue > 20)) return
+    
+    // Mise à jour locale immédiate
+    setLocalGrades(prev => ({ ...prev, [key]: numValue }))
+    
+    // Envoi au backend
+    await updateGrade(studentId, programId!, position, numValue)
+  }
+  
+  const getGradeValue = (studentId: number, position: number, defaultValue: number) => {
+    const key = `${studentId}-${position}`
+    return localGrades[key] !== undefined ? localGrades[key] : defaultValue
   }
 
   const handleCreateEvaluation = async (isRetake = false) => {
-    const result = await createEvaluation(parseInt(programId!), isRetake)
+    const result = await createEvaluation(programId!, isRetake)
     if (result.success) {
       setError(null)
     }
@@ -101,7 +117,7 @@ const GradeSheet = () => {
       return
     }
 
-    const result = await setWeighting(parseInt(programId!), weightingValues)
+    const result = await setWeighting(programId!, weightingValues)
     if (result.success) {
       setShowWeightingModal(false)
       setError(null)
@@ -109,30 +125,38 @@ const GradeSheet = () => {
   }
 
   const handleDuplicateGrade = async () => {
-    if (duplicateValue < -1 || duplicateValue > 20) {
-      setError('La note doit être entre -1 et 20')
-      return
-    }
-
-    const result = await duplicateGrade(parseInt(programId!), duplicateColumn, duplicateValue)
+    const result = await duplicateGrade(programId!, duplicateColumn, true)
     if (result.success) {
       setShowDuplicateModal(false)
       setError(null)
     }
   }
 
-  const handleExport = async (includeRetake = false) => {
-    const result = await exportGradeSheet(parseInt(programId!), includeRetake)
+  const handleExport = async (includeRetake: boolean = false) => {
+    const result = await exportGradeSheet(programId!, includeRetake)
+    if (result.success && result.url) {
+      const link = document.createElement('a')
+      link.href = result.url
+      link.download = result.filename || `fiche-notes-${Date.now()}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(result.url)
+    }
+  }
+
+  const handleDeleteEvaluation = async () => {
+    const result = await deleteEvaluation(programId!, deleteColumn, !deleteIsRetake)
     if (result.success) {
-      // Traiter l'export (téléchargement, etc.)
-      console.log('Export data:', result.data)
+      setShowDeleteModal(false)
+      setError(null)
     }
   }
 
   const getGradeColor = (grade: number): string => {
     if (grade === -1) return 'warning'
-    if (grade >= 10) return 'success'
-    if (grade >= 8) return 'info'
+    if (grade >= 12) return 'success'
+    if (grade >= 10) return 'info'
     return 'danger'
   }
 
@@ -141,6 +165,18 @@ const GradeSheet = () => {
     
     const sum = grades.reduce((acc, grade, index) => acc + (grade * weighting[index] / 100), 0)
     return Math.round(sum * 100) / 100
+  }
+  
+  const calculateAverageWithLocal = (studentId: number, grades: number[], weighting: number[]): number => {
+    const localGradesArray = grades.map((grade, index) => getGradeValue(studentId, index, grade))
+    
+    // Si toutes les notes sont renseignées, calculer la moyenne
+    if (!localGradesArray.includes(-1)) {
+      const sum = localGradesArray.reduce((acc, grade, index) => acc + (grade * weighting[index] / 100), 0)
+      return Math.round(sum * 100) / 100
+    }
+    
+    return -1
   }
 
   if (loading && !gradeSheet) {
@@ -180,7 +216,7 @@ const GradeSheet = () => {
           <CButton
             color="secondary"
             variant="outline"
-            onClick={() => navigate('/notes/professor')}
+            onClick={() => navigate('/notes/professor/dashboard')}
           >
             <CIcon icon={cilArrowLeft} className="me-1" />
             Retour
@@ -213,6 +249,7 @@ const GradeSheet = () => {
             <CButton
               color="success"
               onClick={() => handleCreateEvaluation(false)}
+              disabled={gradeSheet.program.retake_column_count > 0}
             >
               <CIcon icon={cilPlus} className="me-1" />
               Nouvelle évaluation
@@ -256,7 +293,7 @@ const GradeSheet = () => {
               <CDropdown>
                 <CDropdownToggle color="primary" variant="outline">
                   <CIcon icon={cilCloudDownload} className="me-1" />
-                  Exporter
+                  Exporter PDF
                 </CDropdownToggle>
                 <CDropdownMenu>
                   <CDropdownItem onClick={() => handleExport(false)}>
@@ -293,8 +330,23 @@ const GradeSheet = () => {
                 <CTableRow>
                   <CTableHeaderCell>Nom et Prénoms</CTableHeaderCell>
                   {Array.from({ length: gradeSheet.program.column_count }, (_, i) => (
-                    <CTableHeaderCell key={i} className="text-center">
-                      Eval {i + 1}
+                    <CTableHeaderCell key={i} className="text-center position-relative">
+                      {gradeSheet.program.retake_column_count === 0 && (
+                        <CButton
+                          color="danger"
+                          size="sm"
+                          className="position-absolute top-0 end-0 m-1"
+                          style={{ padding: '2px 6px', fontSize: '10px' }}
+                          onClick={() => {
+                            setDeleteColumn(i)
+                            setDeleteIsRetake(false)
+                            setShowDeleteModal(true)
+                          }}
+                        >
+                          <CIcon icon={cilX} size="sm" />
+                        </CButton>
+                      )}
+                      <div>Eval {i + 1}</div>
                       {gradeSheet.program.weighting[i] && (
                         <div className="small text-muted">
                           ({gradeSheet.program.weighting[i]}%)
@@ -307,7 +359,29 @@ const GradeSheet = () => {
                   )}
                   {gradeSheet.program.retake_column_count > 0 && (
                     <>
-                      <CTableHeaderCell className="text-center">Rattrapage</CTableHeaderCell>
+                      {Array.from({ length: gradeSheet.program.retake_column_count }, (_, i) => (
+                        <CTableHeaderCell key={`retake-${i}`} className="text-center position-relative">
+                          <CButton
+                            color="danger"
+                            size="sm"
+                            className="position-absolute top-0 end-0 m-1"
+                            style={{ padding: '2px 6px', fontSize: '10px' }}
+                            onClick={() => {
+                              setDeleteColumn(i)
+                              setDeleteIsRetake(true)
+                              setShowDeleteModal(true)
+                            }}
+                          >
+                            <CIcon icon={cilX} size="sm" />
+                          </CButton>
+                          <div>Rattrapage {i + 1}</div>
+                          {gradeSheet.program.retake_weighting[i] && (
+                            <div className="small text-muted">
+                              ({gradeSheet.program.retake_weighting[i]}%)
+                            </div>
+                          )}
+                        </CTableHeaderCell>
+                      ))}
                       <CTableHeaderCell className="text-center">Moy. Finale</CTableHeaderCell>
                     </>
                   )}
@@ -316,8 +390,26 @@ const GradeSheet = () => {
               </CTableHead>
               <CTableBody>
                 {gradeSheet.students.map((student) => {
-                  const average = calculateAverage(student.grades, gradeSheet.program.weighting)
-                  const isValidated = average >= 10 || (student.retake_average && student.retake_average >= 10)
+                  const average = calculateAverageWithLocal(student.student_pending_student_id, student.grades, gradeSheet.program.weighting)
+                  const needsRetake = average !== -1 && average < 12
+                  
+                  // Calculer moyenne finale avec rattrapage local
+                  let finalAverage = average
+                  if (gradeSheet.program.retake_column_count > 0 && average < 12) {
+                    const retakeGrades = student.retake_grades && student.retake_grades.length > 0 ? student.retake_grades : Array(gradeSheet.program.retake_column_count).fill(-1)
+                    const localRetakeGrades = retakeGrades.map((grade, index) => {
+                      const position = gradeSheet.program.column_count + index
+                      return getGradeValue(student.student_pending_student_id, position, grade)
+                    })
+                    
+                    if (!localRetakeGrades.includes(-1) && gradeSheet.program.retake_weighting.length > 0) {
+                      const sum = localRetakeGrades.reduce((acc, grade, index) => 
+                        acc + (grade * gradeSheet.program.retake_weighting[index] / 100), 0)
+                      finalAverage = Math.round(sum * 100) / 100
+                    }
+                  }
+                  
+                  const isValidated = finalAverage >= 12
                   
                   return (
                     <CTableRow key={student.student_pending_student_id}>
@@ -326,24 +418,28 @@ const GradeSheet = () => {
                         <small className="text-muted">{student.first_names}</small>
                       </CTableDataCell>
                       
-                      {student.grades.map((grade, index) => (
-                        <CTableDataCell key={index} className="text-center">
-                          <CFormInput
-                            type="number"
-                            min="-1"
-                            max="20"
-                            step="0.25"
-                            value={grade === -1 ? '' : grade}
-                            onChange={(e) => handleGradeChange(
-                              student.student_pending_student_id,
-                              index,
-                              e.target.value
-                            )}
-                            className="text-center"
-                            style={{ width: '80px' }}
-                          />
-                        </CTableDataCell>
-                      ))}
+                      {student.grades.map((grade, index) => {
+                        const displayValue = getGradeValue(student.student_pending_student_id, index, grade)
+                        return (
+                          <CTableDataCell key={index} className="text-center">
+                            <CFormInput
+                              type="number"
+                              min="-1"
+                              max="20"
+                              step="0.25"
+                              value={displayValue === -1 ? '' : displayValue}
+                              onChange={(e) => handleGradeChange(
+                                student.student_pending_student_id,
+                                index,
+                                e.target.value
+                              )}
+                              className="text-center"
+                              style={{ width: '80px' }}
+                              disabled={gradeSheet.program.retake_column_count > 0}
+                            />
+                          </CTableDataCell>
+                        )
+                      })}
                       
                       {gradeSheet.program.column_count > 0 && (
                         <CTableDataCell className="text-center">
@@ -355,18 +451,57 @@ const GradeSheet = () => {
                       
                       {gradeSheet.program.retake_column_count > 0 && (
                         <>
+                          {(() => {
+                            const retakeGrades = student.retake_grades && student.retake_grades.length > 0 ? student.retake_grades : Array(gradeSheet.program.retake_column_count).fill(-1)
+                            return retakeGrades.map((grade, index) => {
+                              const position = gradeSheet.program.column_count + index
+                              const displayValue = getGradeValue(student.student_pending_student_id, position, grade)
+                              return (
+                                <CTableDataCell key={`retake-${index}`} className="text-center">
+                                  {needsRetake ? (
+                                    <CFormInput
+                                      type="number"
+                                      min="-1"
+                                      max="20"
+                                      step="0.25"
+                                      value={displayValue === -1 ? '' : displayValue}
+                                      onChange={(e) => handleGradeChange(
+                                        student.student_pending_student_id,
+                                        position,
+                                        e.target.value
+                                      )}
+                                      className="text-center"
+                                      style={{ width: '80px' }}
+                                    />
+                                  ) : (
+                                    <CBadge color="success">V</CBadge>
+                                  )}
+                                </CTableDataCell>
+                              )
+                            })
+                          })()}
                           <CTableDataCell className="text-center">
-                            {average < 10 ? (
-                              student.retake_grades?.[0] !== undefined ? 
-                                student.retake_grades[0] : '-'
-                            ) : (
-                              <CBadge color="success">V</CBadge>
-                            )}
-                          </CTableDataCell>
-                          <CTableDataCell className="text-center">
-                            <CBadge color={getGradeColor(student.retake_average || average)}>
-                              {(student.retake_average || average).toFixed(2)}
-                            </CBadge>
+                            {(() => {
+                              if (average >= 12) {
+                                return <CBadge color={getGradeColor(average)}>{average.toFixed(2)}</CBadge>
+                              }
+                              // Calculer moyenne de rattrapage avec valeurs locales
+                              const retakeGrades = student.retake_grades && student.retake_grades.length > 0 ? student.retake_grades : Array(gradeSheet.program.retake_column_count).fill(-1)
+                              const localRetakeGrades = retakeGrades.map((grade, index) => {
+                                const position = gradeSheet.program.column_count + index
+                                return getGradeValue(student.student_pending_student_id, position, grade)
+                              })
+                              
+                              let finalAverage = average
+                              if (!localRetakeGrades.includes(-1) && gradeSheet.program.retake_weighting.length > 0) {
+                                const sum = localRetakeGrades.reduce((acc, grade, index) => 
+                                  acc + (grade * gradeSheet.program.retake_weighting[index] / 100), 0)
+                                const calculatedAverage = Math.round(sum * 100) / 100
+                                finalAverage = calculatedAverage >= 12 ? 12 : calculatedAverage
+                              }
+                              
+                              return <CBadge color={getGradeColor(finalAverage)}>{finalAverage === -1 ? '-' : finalAverage.toFixed(2)}</CBadge>
+                            })()}
                           </CTableDataCell>
                         </>
                       )}
@@ -433,11 +568,12 @@ const GradeSheet = () => {
       {/* Modal Duplication */}
       <CModal visible={showDuplicateModal} onClose={() => setShowDuplicateModal(false)}>
         <CModalHeader>
-          <CModalTitle>Dupliquer une note</CModalTitle>
+          <CModalTitle>Dupliquer une évaluation</CModalTitle>
         </CModalHeader>
         <CModalBody>
+          <p>Sélectionnez l'évaluation à dupliquer. Une nouvelle colonne sera créée avec les mêmes notes.</p>
           <div className="mb-3">
-            <label className="form-label">Colonne</label>
+            <label className="form-label">Évaluation à dupliquer</label>
             <select
               className="form-select"
               value={duplicateColumn}
@@ -448,17 +584,6 @@ const GradeSheet = () => {
               ))}
             </select>
           </div>
-          <div className="mb-3">
-            <label className="form-label">Note à dupliquer</label>
-            <CFormInput
-              type="number"
-              min="-1"
-              max="20"
-              step="0.25"
-              value={duplicateValue}
-              onChange={(e) => setDuplicateValue(parseFloat(e.target.value) || -1)}
-            />
-          </div>
         </CModalBody>
         <CModalFooter>
           <CButton color="secondary" onClick={() => setShowDuplicateModal(false)}>
@@ -467,6 +592,31 @@ const GradeSheet = () => {
           <CButton color="primary" onClick={handleDuplicateGrade}>
             <CIcon icon={cilCopy} className="me-1" />
             Dupliquer
+          </CButton>
+        </CModalFooter>
+      </CModal>
+
+      {/* Modal Suppression */}
+      <CModal visible={showDeleteModal} onClose={() => setShowDeleteModal(false)}>
+        <CModalHeader>
+          <CModalTitle>Supprimer une évaluation</CModalTitle>
+        </CModalHeader>
+        <CModalBody>
+          <CAlert color="danger">
+            <strong>Attention !</strong> Cette action est irréversible.
+          </CAlert>
+          <p>Êtes-vous sûr de vouloir supprimer {deleteIsRetake ? 'le rattrapage' : 'l\'évaluation'} {deleteColumn + 1} ?</p>
+          <p className="text-muted">
+            Toutes les notes de cette colonne seront supprimées pour tous les étudiants.
+          </p>
+        </CModalBody>
+        <CModalFooter>
+          <CButton color="secondary" onClick={() => setShowDeleteModal(false)}>
+            Annuler
+          </CButton>
+          <CButton color="danger" onClick={handleDeleteEvaluation}>
+            <CIcon icon={cilX} className="me-1" />
+            Supprimer
           </CButton>
         </CModalFooter>
       </CModal>

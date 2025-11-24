@@ -34,6 +34,7 @@ const ProfessorDashboard = () => {
   const [selectedAcademicYear, setSelectedAcademicYear] = useState<number | null>(null)
   const [selectedDepartment, setSelectedDepartment] = useState<number | null>(null)
   const [selectedCohort, setSelectedCohort] = useState<string | null>(null)
+  const [cohortOptions, setCohortOptions] = useState<Array<{value: string, label: string}>>([])
 
   // Options pour les années académiques
   const yearOptions = useMemo(() => {
@@ -43,30 +44,45 @@ const ProfessorDashboard = () => {
     }))
   }, [academicYears])
 
-  // Options pour les cohortes
-  const cohortOptions = [
-    { value: '1', label: 'Cohorte 1' },
-    { value: '2', label: 'Cohorte 2' },
-    { value: '3', label: 'Cohorte 3' }
-  ]
+  // Charger les cohortes quand l'année académique change
+  useEffect(() => {
+    const fetchCohorts = async () => {
+      if (selectedAcademicYear) {
+        try {
+          const response = await fetch(`http://localhost:8001/api/inscription/cohortes?academic_year_id=${selectedAcademicYear}`)
+          const data = await response.json()
+          if (data.success) {
+            setCohortOptions(data.data)
+          }
+        } catch (error) {
+          console.error('Erreur lors du chargement des cohortes:', error)
+        }
+      } else {
+        setCohortOptions([])
+        setSelectedCohort(null)
+      }
+    }
+    fetchCohorts()
+  }, [selectedAcademicYear])
 
   // Charger les classes au montage et lors des changements de filtres
   useEffect(() => {
-    loadMyClasses({
-      academic_year_id: selectedAcademicYear || undefined,
-      department_id: selectedDepartment || undefined,
-      cohort: selectedCohort || undefined
-    })
+    const filters: any = {}
+    if (selectedAcademicYear) filters.academic_year_id = selectedAcademicYear
+    if (selectedDepartment) filters.department_id = selectedDepartment
+    if (selectedCohort) filters.cohort = selectedCohort
+    
+    loadMyClasses(Object.keys(filters).length > 0 ? filters : undefined)
   }, [selectedAcademicYear, selectedDepartment, selectedCohort])
 
-  const handleCreateEvaluation = (programId: number) => {
+  const handleCreateEvaluation = (programUuid: string) => {
     // Rediriger vers la page de création d'évaluation
-    window.location.href = `/notes/professor/evaluation/${programId}`
+    window.location.href = `/notes/professor/evaluation/${programUuid}`
   }
 
-  const handleViewGrades = (programId: number) => {
+  const handleViewGrades = (programUuid: string) => {
     // Rediriger vers la page de notation
-    window.location.href = `/notes/professor/grade-sheet/${programId}`
+    window.location.href = `/notes/professor/grade-sheet/${programUuid}`
   }
 
   if (loading && !classes.length) {
@@ -108,9 +124,10 @@ const ProfessorDashboard = () => {
                 options={cohortOptions}
                 value={cohortOptions.find(opt => opt.value === selectedCohort)}
                 onChange={(option: any) => setSelectedCohort(option?.value || null)}
-                placeholder="Toutes les cohortes..."
+                placeholder={selectedAcademicYear ? "Toutes les cohortes..." : "Sélectionnez d'abord une année..."}
                 isClearable
                 isSearchable
+                isDisabled={!selectedAcademicYear || cohortOptions.length === 0}
               />
             </CCol>
           </CRow>
@@ -125,7 +142,7 @@ const ProfessorDashboard = () => {
 
       {/* Classes par cycle */}
       {classes.length > 0 ? (
-        <CAccordion>
+        <CAccordion activeItemKey={0}>
           {classes.map((cycle: any, cycleIndex: number) => (
             <CAccordionItem key={cycleIndex} itemKey={cycleIndex}>
               <CAccordionHeader>
@@ -156,9 +173,13 @@ const ProfessorDashboard = () => {
                               </CBadge>
                             </CCardHeader>
                             <CCardBody>
+                              <div className="mb-2">
+                                <CIcon icon={cilBook} className="me-2" />
+                                <span>{classGroup.programs_count} programme(s)</span>
+                              </div>
                               <div className="d-flex align-items-center mb-3">
                                 <CIcon icon={cilPeople} className="me-2" />
-                                <span>{classGroup.programs_count} programme(s)</span>
+                                <span>{classGroup.students_count || 0} étudiant(s)</span>
                               </div>
                               
                               <CButton
@@ -226,7 +247,8 @@ const ProfessorDashboard = () => {
                         <CButton
                           color="success"
                           size="sm"
-                          onClick={() => handleCreateEvaluation(program.id)}
+                          onClick={() => program.uuid && handleCreateEvaluation(program.uuid)}
+                          disabled={!program.uuid}
                         >
                           <CIcon icon={cilPlus} className="me-1" />
                           Créer évaluation
@@ -237,7 +259,8 @@ const ProfessorDashboard = () => {
                             color="primary"
                             size="sm"
                             variant="outline"
-                            onClick={() => handleViewGrades(program.id)}
+                            onClick={() => program.uuid && handleViewGrades(program.uuid)}
+                            disabled={!program.uuid}
                           >
                             Voir les notes
                           </CButton>

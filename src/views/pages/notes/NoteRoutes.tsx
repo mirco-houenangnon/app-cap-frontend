@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts'
 
 const ProfessorDashboard = React.lazy(() => import('./ProfessorDashboard'))
 const GradeSheet = React.lazy(() => import('./GradeSheet'))
+const CreateEvaluation = React.lazy(() => import('./CreateEvaluation'))
 const AdminDashboard = React.lazy(() => import('./AdminDashboard'))
 const AdminConsultation = React.lazy(() => import('./AdminConsultation'))
 const DecisionSemester = React.lazy(() => import('./DecisionSemester'))
@@ -24,6 +25,7 @@ const NoteRoutes = () => {
         {/* Routes Professeur */}
         <Route path="/professor/dashboard" element={<ProfessorDashboard />} />
         <Route path="/professor/grade-sheet/:programId" element={<GradeSheet />} />
+        <Route path="/professor/evaluation/:programId" element={<CreateEvaluation />} />
         
         {/* Routes Administration */}
         <Route path="/admin/dashboard" element={<AdminDashboard />} />

@@ -81,6 +81,50 @@ const useAdminGrades = () => {
     }
   }
 
+  const exportPVFinAnnee = async (params: {
+    academic_year_id: number
+    department_id: number
+    level?: string
+    cohort?: string
+    validation_average: number
+  }) => {
+    try {
+      return await notesService.exportPVFinAnnee(params)
+    } catch (err: any) {
+      setError(err.message || 'Erreur lors de l\'export')
+      throw err
+    }
+  }
+
+  const exportPVDeliberation = async (params: {
+    academic_year_id: number
+    department_id: number
+    level?: string
+    cohort?: string
+    semester: number
+  }) => {
+    try {
+      return await notesService.exportPVDeliberation(params)
+    } catch (err: any) {
+      setError(err.message || 'Erreur lors de l\'export')
+      throw err
+    }
+  }
+
+  const exportRecapNotes = async (params: {
+    academic_year_id: number
+    department_id: number
+    level?: string
+    cohort?: string
+  }) => {
+    try {
+      return await notesService.exportRecapNotes({...params, semester: 1})
+    } catch (err: any) {
+      setError(err.message || 'Erreur lors de l\'export')
+      throw err
+    }
+  }
+
   return {
     dashboardStats,
     gradesByFilters,
@@ -91,6 +135,9 @@ const useAdminGrades = () => {
     loadGradesByFilters,
     loadProgramDetails,
     exportByDepartment,
+    exportPVFinAnnee,
+    exportPVDeliberation,
+    exportRecapNotes,
     setError
   }
 }

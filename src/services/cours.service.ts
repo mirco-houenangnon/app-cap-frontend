@@ -299,6 +299,15 @@ createCourseResource = async (data: CreateCourseResourceRequest): Promise<Course
   }
 
   /**
+   * Reconduit un programme pour la prochaine année académique
+   * TODO: Implémenter quand la logique backend sera finalisée
+   */
+  renewProgram = async (id: number | string): Promise<Program> => {
+    const response = await HttpService.post(`${COURS_ROUTES.PROGRAM(id)}/renew`)
+    return response.data
+  }
+
+  /**
    * Crée plusieurs programmes en masse
    */
   bulkCreatePrograms = async (data: BulkCreateProgramsRequest) => {
@@ -406,8 +415,14 @@ createCourseResource = async (data: CreateCourseResourceRequest): Promise<Course
    * Récupère la liste des groupes de classe (pour les selects)
    */
   getClassGroups = async (): Promise<ClassGroup[]> => {
-    const response = await HttpService.get<ApiResponse<ClassGroup[]>>('inscription/class-groups')
-    return response.data || []
+    try {
+      // Récupérer toutes les classes (table class_groups dans Inscription)
+      const response = await HttpService.get<ApiResponse<any[]>>('cours/class-groups')
+      return response.data || []
+    } catch (error) {
+      console.error('Erreur getClassGroups:', error)
+      return []
+    }
   }
 
   /**

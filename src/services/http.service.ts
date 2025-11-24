@@ -73,20 +73,38 @@ export class HttpService {
     return await this.request<T>(this.getOptionsConfig('delete' as const, url, data));
   };
 
-  downloadFile = async (url: string): Promise<{success: true, url: string}> => {
-    const response = await this._axios.get(url, {
-      responseType: 'blob',
-      headers: {
-        'Accept': 'application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      },
-    });
-    
-    const blob = new Blob([response.data], { 
-      type: response.headers['content-type'] || 'application/octet-stream' 
-    });
-    const blobUrl = URL.createObjectURL(blob);
-    
-    return { success: true, url: blobUrl };
+  downloadFile = async (url: string): Promise<{success: true, url: string, filename?: string}> => {
+    try {
+      const response = await this._axios.get(url, {
+        responseType: 'blob',
+        headers: {
+          'Accept': 'application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        },
+      });
+      
+      const blob = new Blob([response.data], { 
+        type: response.headers['content-type'] || 'application/octet-stream' 
+      });
+      const blobUrl = URL.createObjectURL(blob);
+      
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = undefined;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?(.+?)"?$/i);
+        if (filenameMatch) {
+          filename = filenameMatch[1];
+        }
+      }
+      
+      return { success: true, url: blobUrl, filename };
+    } catch (error: any) {
+      if (error.response?.data instanceof Blob) {
+        const text = await error.response.data.text();
+        const json = JSON.parse(text);
+        throw new Error(json.message);
+      }
+      throw error;
+    }
   };
 
   private getOptionsConfig = (

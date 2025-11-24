@@ -34,7 +34,12 @@ export const usePrograms = (initialFilters: ProgramFilters = {}) => {
     try {
       setLoading(true)
       setError(null)
-      const response: ApiResponse<Program[]> = await CoursService.getPrograms(filters)
+      
+      const cleanFilters = Object.fromEntries(
+        Object.entries(filters).filter(([_, value]) => value !== undefined && value !== null && value !== '')
+      )
+      
+      const response: ApiResponse<Program[]> = await CoursService.getPrograms(cleanFilters)
       
       setPrograms(response.data || [])
       const meta = response.meta

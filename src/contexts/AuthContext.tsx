@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { STORAGE_KEYS, FRONTEND_ROUTES, UserRole } from '@/constants';
+import authService from '@/services/auth.service';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -9,7 +10,7 @@ interface AuthContextType {
   nom: string | null;
   prenoms: string | null;
   login: (token: string, userNom: string, userPrenoms: string, userRole: UserRole) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 interface AuthContextProviderProps {
@@ -56,18 +57,24 @@ export const AuthContextProvider: React.FC<AuthContextProviderProps> = ({ childr
     navigate(FRONTEND_ROUTES.PORTAIL);
   };
 
-  const logout = (): void => {
-    localStorage.removeItem(STORAGE_KEYS.TOKEN);
-    localStorage.removeItem(STORAGE_KEYS.ROLE);
-    localStorage.removeItem(STORAGE_KEYS.NOM);
-    localStorage.removeItem(STORAGE_KEYS.PRENOMS);
-    
-    setIsAuthenticated(false);
-    setRole(null);
-    setNom(null);
-    setPrenoms(null);
-    
-    navigate(FRONTEND_ROUTES.PORTAIL);
+  const logout = async (): Promise<void> => {
+    try {
+      await authService.logout();
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
+    } finally {
+      localStorage.removeItem(STORAGE_KEYS.TOKEN);
+      localStorage.removeItem(STORAGE_KEYS.ROLE);
+      localStorage.removeItem(STORAGE_KEYS.NOM);
+      localStorage.removeItem(STORAGE_KEYS.PRENOMS);
+      
+      setIsAuthenticated(false);
+      setRole(null);
+      setNom(null);
+      setPrenoms(null);
+      
+      navigate(FRONTEND_ROUTES.PORTAIL);
+    }
   };
 
   const value: AuthContextType = {

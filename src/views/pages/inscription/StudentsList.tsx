@@ -31,6 +31,8 @@ const StudentsList = () => {
     setSelectedRedoublant,
     selectedNiveau,
     setSelectedNiveau,
+    selectedCohort,
+    setSelectedCohort,
     searchQuery,
     setSearchQuery,
     currentPage,
@@ -65,6 +67,7 @@ const StudentsList = () => {
     selectedNiveau,
     selectedEntryDiploma: _selectedEntryDiploma,
     selectedRedoublant,
+    selectedCohort,
     filterOptions,
   })
   React.useEffect(() => {
@@ -74,7 +77,7 @@ const StudentsList = () => {
 
   React.useEffect(() => {
     const checkExistingGroups = async () => {
-      if (selectedYear !== 'all' && selectedFiliere !== 'all' && selectedNiveau !== 'all') {
+      if (selectedYear !== 'all' && selectedFiliere !== 'all' && selectedNiveau !== 'all' && selectedCohort !== 'all') {
         try {
           const academicYearId = parseInt(selectedYear, 10)
           const departmentId = parseInt(selectedFiliere, 10)
@@ -83,7 +86,8 @@ const StudentsList = () => {
             const response = await InscriptionService.getClassGroups(
               academicYearId,
               departmentId,
-              selectedNiveau
+              selectedNiveau,
+              selectedCohort
             )
             setHasExistingGroups(response.data && response.data.length > 0)
           }
@@ -95,7 +99,7 @@ const StudentsList = () => {
       }
     }
     checkExistingGroups()
-  }, [selectedYear, selectedFiliere, selectedNiveau])
+  }, [selectedYear, selectedFiliere, selectedNiveau, selectedCohort])
 
   const handleFilterChange = useCallback(
     (name: string, option: { value: string } | null) => {
@@ -104,6 +108,7 @@ const StudentsList = () => {
       if (name === 'filiere') setSelectedFiliere(value)
       if (name === 'redoublant') setSelectedRedoublant(value)
       if (name === 'niveau') setSelectedNiveau(value)
+      if (name === 'cohort') setSelectedCohort(value)
       setCurrentPage(1)
     },
     [
@@ -111,6 +116,7 @@ const StudentsList = () => {
       setSelectedFiliere,
       setSelectedRedoublant,
       setSelectedNiveau,
+      setSelectedCohort,
       setCurrentPage,
     ]
   )
@@ -136,6 +142,52 @@ const StudentsList = () => {
   const handleCreateGroups = useCallback(async () => {
     await groupCreation.initializeGroups()
   }, [groupCreation])
+  
+  const handleCreateDefaultGroup = useCallback(async () => {
+    if (selectedYear === 'all' || selectedFiliere === 'all' || selectedNiveau === 'all' || selectedCohort === 'all') {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Sélection requise',
+        text: 'Veuillez sélectionner une année académique, une filière, un niveau et une cohorte.',
+      })
+      return
+    }
+    
+    try {
+      const result = await Swal.fire({
+        title: 'Créer un groupe unique ?',
+        text: 'Tous les étudiants de cette cohorte seront placés dans un groupe unique "A".',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Oui, créer',
+        cancelButtonText: 'Annuler',
+      })
+      
+      if (result.isConfirmed) {
+        const response = await InscriptionService.createDefaultClassGroup(
+          parseInt(selectedYear),
+          parseInt(selectedFiliere),
+          selectedNiveau,
+          selectedCohort
+        )
+        
+        if (response.success) {
+          await Swal.fire({
+            icon: 'success',
+            title: 'Groupe créé',
+            text: `Groupe unique créé avec ${response.data.students_count} étudiant(s)`,
+          })
+          window.location.reload()
+        }
+      }
+    } catch (error: any) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Erreur',
+        text: error?.message || 'Impossible de créer le groupe',
+      })
+    }
+  }, [selectedYear, selectedFiliere, selectedNiveau, selectedCohort])
 
   const handleCancelGroupCreation = useCallback(async () => {
     const cancelled = await groupCreation.cancelGroupCreation()
@@ -146,11 +198,11 @@ const StudentsList = () => {
 
   const handleExport = useCallback(
     async (type: 'fiche-presence' | 'fiche-emargement') => {
-      if (selectedYear === 'all' || selectedFiliere === 'all' || selectedNiveau === 'all') {
+      if (selectedYear === 'all' || selectedFiliere === 'all' || selectedNiveau === 'all' || selectedCohort === 'all') {
         Swal.fire({
           icon: 'warning',
           title: 'Sélection requise',
-          text: "Veuillez sélectionner une année académique, une filière et un niveau avant d'exporter.",
+          text: "Veuillez sélectionner une année académique, une filière, un niveau et une cohorte avant d'exporter.",
         })
         return
       }
@@ -200,6 +252,7 @@ const StudentsList = () => {
           selectedYear,
           selectedFiliere,
           selectedNiveau,
+          selectedCohort,
           selectedGroupe
         )
 
@@ -236,7 +289,7 @@ const StudentsList = () => {
         })
       }
     },
-    [selectedYear, selectedFiliere, selectedNiveau, filterOptions]
+    [selectedYear, selectedFiliere, selectedNiveau, selectedCohort, filterOptions]
   )
 
   if (loading) {
@@ -250,15 +303,26 @@ const StudentsList = () => {
           <span className="fw-bold">Liste des Étudiants</span>
           <div>
             {!hasExistingGroups && (
-              <CButton
-                color="success"
-                variant="outline"
-                size="sm"
-                className="me-2"
-                onClick={handleCreateGroups}
-              >
-                Créer des groupes
-              </CButton>
+              <>
+                <CButton
+                  color="info"
+                  variant="outline"
+                  size="sm"
+                  className="me-2"
+                  onClick={handleCreateDefaultGroup}
+                >
+                  Groupe unique
+                </CButton>
+                <CButton
+                  color="success"
+                  variant="outline"
+                  size="sm"
+                  className="me-2"
+                  onClick={handleCreateGroups}
+                >
+                  Créer des groupes
+                </CButton>
+              </>
             )}
             <CButton
               color="primary"
@@ -286,12 +350,14 @@ const StudentsList = () => {
             selectedYear={selectedYear}
             selectedFiliere={selectedFiliere}
             selectedNiveau={selectedNiveau}
+            selectedCohort={selectedCohort}
             selectedRedoublant={selectedRedoublant}
             searchQuery={localSearchQuery}
             onFilterChange={handleFilterChange}
             onSearchChange={handleSearchChange}
             showSearch={true}
             showNiveau={true}
+            showCohort={true}
             showRedoublant={true}
           />
           <StudentTable students={students} loading={false} onRowClick={handleRowClick} />

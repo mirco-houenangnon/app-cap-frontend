@@ -21,12 +21,14 @@ import CIcon from '@coreui/icons-react'
 import { cilSave, cilFilter } from '@coreui/icons'
 import { LoadingSpinner } from '@/components'
 import useAnneeAcademiquesData from '@/hooks/inscription/useAnneeAcademiqueData'
+import useFiltersData from '@/hooks/inscription/useFiltersData'
+import useAdminGrades from '@/hooks/notes/useAdminGrades'
+import useDecisionData from '@/hooks/notes/useDecisionData'
 import notesService from '@/services/notes.service'
 
 const DecisionSemester = () => {
   const { academicYears } = useAnneeAcademiquesData()
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { exportPVDeliberation } = useAdminGrades()
 
   // États pour les filtres
   const [selectedAcademicYear, setSelectedAcademicYear] = useState<number | null>(null)
@@ -37,7 +39,14 @@ const DecisionSemester = () => {
 
   // États pour les décisions
   const [decisions, setDecisions] = useState<Record<number, string>>({})
-  const [students, setStudents] = useState<any[]>([])
+  
+  const { students, loading, error } = useDecisionData(
+    selectedAcademicYear,
+    selectedDepartment,
+    selectedLevel,
+    selectedCohort,
+    selectedSemester
+  )
 
   // Options pour les sélecteurs
   const yearOptions = useMemo(() => {
@@ -47,8 +56,7 @@ const DecisionSemester = () => {
     }))
   }, [academicYears])
 
-  const [departments, setDepartments] = useState<any[]>([])
-  const [cohorts, setCohorts] = useState<string[]>([])
+  const { departments, levels, cohorts } = useFiltersData(selectedAcademicYear)
 
   const departmentOptions = useMemo(() => {
     return departments.map((dept: any) => ({
@@ -58,43 +66,11 @@ const DecisionSemester = () => {
   }, [departments])
 
   const levelOptions = useMemo(() => {
-    const uniqueLevels = new Set<string>()
-    departments.forEach((dept: any) => {
-      const cycle = dept.cycle
-      if (cycle === 'licence professionnelle') {
-        uniqueLevels.add('L1')
-        uniqueLevels.add('L2')
-        uniqueLevels.add('L3')
-      } else if (cycle === 'master') {
-        uniqueLevels.add('M1')
-        uniqueLevels.add('M2')
-      } else if (cycle === 'ingenierie') {
-        uniqueLevels.add('I1')
-        uniqueLevels.add('I2')
-        uniqueLevels.add('I3')
-      }
-    })
-    return Array.from(uniqueLevels).sort().map(level => ({
-      value: level,
-      label: level
+    return levels.map((level: any) => ({
+      value: level.value,
+      label: level.label
     }))
-  }, [departments])
-
-  useEffect(() => {
-    const loadFilters = async () => {
-      try {
-        const [deptRes, cohortRes] = await Promise.all([
-          notesService.getDepartments(),
-          notesService.getCohorts()
-        ])
-        setDepartments(deptRes.data || [])
-        setCohorts(cohortRes.data || [])
-      } catch (error) {
-        console.error('Erreur chargement filtres:', error)
-      }
-    }
-    loadFilters()
-  }, [])
+  }, [levels])
 
   const decisionOptions = [
     'Admis',
@@ -104,10 +80,13 @@ const DecisionSemester = () => {
   ]
 
   const cohortOptions = useMemo(() => {
-    return cohorts.map((cohort: string) => ({
-      value: cohort,
-      label: cohort
-    }))
+    return cohorts.map((cohort: any) => {
+      const cohortValue = typeof cohort === 'string' ? cohort : (cohort.cohort || cohort.value || cohort)
+      return {
+        value: cohortValue,
+        label: cohortValue
+      }
+    })
   }, [cohorts])
 
   // Charger l'année académique courante par défaut
@@ -144,26 +123,9 @@ const DecisionSemester = () => {
     return 'Exclu'
   }
 
-  useEffect(() => {
-    const loadStudents = async () => {
-      if (!selectedAcademicYear || !selectedDepartment || !selectedLevel) return
-      
-      setLoading(true)
-      try {
-        // TODO: Implémenter l'endpoint backend
-        setStudents([])
-      } catch (err: any) {
-        setError(err.message || 'Erreur lors du chargement')
-      } finally {
-        setLoading(false)
-      }
-    }
-    loadStudents()
-  }, [selectedAcademicYear, selectedDepartment, selectedLevel, selectedSemester, selectedCohort])
-
   const handleSaveDecisions = async () => {
     if (!selectedAcademicYear) return
-    setLoading(true)
+    // setLoading(true) // Fonction non disponible dans ce contexte
     try {
       const decisionsArray = Object.entries(decisions).map(([studentId, decision]) => ({
         student_id: parseInt(studentId),
@@ -176,9 +138,10 @@ const DecisionSemester = () => {
         decisions: decisionsArray
       })
     } catch (err: any) {
-      setError(err.message || 'Erreur lors de la sauvegarde')
+      // setError(err.message || 'Erreur lors de la sauvegarde') // Fonction non disponible
+      console.error('Erreur lors de la sauvegarde:', err)
     } finally {
-      setLoading(false)
+      // setLoading(false) // Fonction non disponible dans ce contexte
     }
   }
 
@@ -193,6 +156,45 @@ const DecisionSemester = () => {
     })
     setDecisions(autoDecisions)
   }
+
+  const handleExportPV = async () => {
+    if (!selectedAcademicYear || !selectedDepartment || !selectedLevel || !selectedCohort) return
+    // setLoading(true) // Fonction non disponible dans ce contexte
+    try {
+      const result = await exportPVDeliberation({
+        academic_year_id: selectedAcademicYear,
+        department_id: selectedDepartment,
+        level: selectedLevel,
+        semester: selectedSemester,
+        cohort: selectedCohort
+      })
+      
+      if (result.success && result.url) {
+        const link = document.createElement('a')
+        link.href = result.url
+        link.download = result.filename || `PV_Deliberation_S${selectedSemester}.pdf`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(result.url)
+      }
+    } catch (err: any) {
+      // setError(err.message || 'Erreur lors de l\'export') // Fonction non disponible
+      console.error('Erreur lors de l\'export:', err)
+    } finally {
+      // setLoading(false) // Fonction non disponible dans ce contexte
+    }
+  }
+
+  const isFiltersComplete = selectedAcademicYear && selectedDepartment && selectedLevel && selectedCohort
+
+  console.log('DecisionSemester - Filters:', {
+    selectedAcademicYear,
+    selectedDepartment,
+    selectedLevel,
+    selectedCohort,
+    isFiltersComplete
+  })
 
   return (
     <>
@@ -267,17 +269,30 @@ const DecisionSemester = () => {
                 isClearable
               />
             </CCol>
-            <CCol md={2} className="d-flex align-items-end">
+            <CCol md={3} className="d-flex align-items-end gap-2">
               <CButton
                 color="info"
                 variant="outline"
                 onClick={handleAutoDecisions}
-                className="w-100"
+                className="flex-grow-1"
+                disabled={!isFiltersComplete}
               >
                 Décisions Auto
               </CButton>
+              <CButton
+                color="success"
+                onClick={handleExportPV}
+                disabled={!isFiltersComplete || loading}
+              >
+                Export PV
+              </CButton>
             </CCol>
           </CRow>
+          {!isFiltersComplete && (
+            <CAlert color="info" className="mt-3 mb-0">
+              Veuillez sélectionner tous les filtres (Année, Filière, Niveau, Cohorte) pour activer les exports.
+            </CAlert>
+          )}
         </CCardBody>
       </CCard>
 

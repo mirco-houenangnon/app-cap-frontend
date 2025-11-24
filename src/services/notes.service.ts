@@ -9,7 +9,15 @@ class NotesService {
     department_id?: number
     cohort?: string
   }) => {
-    const queryParams = params ? `?${new URLSearchParams(params as any).toString()}` : ''
+    const filteredParams: Record<string, string> = {}
+    if (params) {
+      if (params.academic_year_id) filteredParams.academic_year_id = params.academic_year_id.toString()
+      if (params.department_id) filteredParams.department_id = params.department_id.toString()
+      if (params.cohort) filteredParams.cohort = params.cohort
+    }
+    const queryParams = Object.keys(filteredParams).length > 0 
+      ? `?${new URLSearchParams(filteredParams).toString()}` 
+      : ''
     return await HttpService.get(`${this.baseUrl}/professor/my-classes${queryParams}`)
   }
 
@@ -19,17 +27,21 @@ class NotesService {
   }
 
   // Professeur - Obtenir la fiche de notation
-  getGradeSheet = async (programId: number, cohort?: string) => {
-    return await HttpService.post(`${this.baseUrl}/professor/grade-sheet`, {
-      program_id: programId,
-      cohort
-    })
+  getGradeSheet = async (programUuid: string, cohort?: string) => {
+    const params = cohort ? `?cohort=${cohort}` : ''
+    return await HttpService.get(`${this.baseUrl}/professor/grade-sheet/${programUuid}${params}`)
+  }
+
+  // Professeur - Obtenir les étudiants pour créer une évaluation
+  getStudentsForEvaluation = async (programUuid: string, cohort?: string) => {
+    const params = cohort ? `?cohort=${cohort}` : ''
+    return await HttpService.get(`${this.baseUrl}/professor/students-for-evaluation/${programUuid}${params}`)
   }
 
   // Professeur - Créer une évaluation
-  createEvaluation = async (programId: number, notes: Record<number, number>, isRetake = false) => {
+  createEvaluation = async (programIdOrUuid: number | string, notes: Record<number, number>, isRetake = false) => {
     return await HttpService.post(`${this.baseUrl}/professor/create-evaluation`, {
-      program_id: programId,
+      program_id: programIdOrUuid,
       notes,
       is_retake: isRetake
     })
@@ -38,7 +50,7 @@ class NotesService {
   // Professeur - Mettre à jour une note
   updateGrade = async (data: {
     student_pending_student_id: number
-    program_id: number
+    program_id: string | number
     position: number
     value: number
   }) => {
@@ -46,7 +58,7 @@ class NotesService {
   }
 
   // Professeur - Définir la pondération
-  setWeighting = async (programId: number, weighting: number[]) => {
+  setWeighting = async (programId: string | number, weighting: number[]) => {
     return await HttpService.put(`${this.baseUrl}/professor/set-weighting`, {
       program_id: programId,
       weighting
@@ -54,20 +66,30 @@ class NotesService {
   }
 
   // Professeur - Dupliquer une note
-  duplicateGrade = async (programId: number, position: number, value: number) => {
+  duplicateGrade = async (programId: string | number, columnIndex: number, sessionNormale = true) => {
     return await HttpService.put(`${this.baseUrl}/professor/duplicate-grade`, {
       program_id: programId,
-      position,
-      value
+      column_index: columnIndex,
+      session_normale: sessionNormale
+    })
+  }
+
+  // Professeur - Supprimer une évaluation
+  deleteEvaluation = async (programId: string | number, columnIndex: number, sessionNormale = true) => {
+    return await HttpService.post(`${this.baseUrl}/professor/delete-evaluation`, {
+      program_id: programId,
+      column_index: columnIndex,
+      session_normale: sessionNormale
     })
   }
 
   // Professeur - Exporter la fiche récapitulative
-  exportGradeSheet = async (programId: number, includeRetake = false) => {
-    return await HttpService.post(`${this.baseUrl}/professor/export-grade-sheet`, {
-      program_id: programId,
-      include_retake: includeRetake
-    })
+  exportGradeSheet = async (programUuid: string, includeRetake: boolean = false, cohort?: string) => {
+    const params = new URLSearchParams()
+    if (includeRetake) params.append('include_retake', 'true')
+    if (cohort) params.append('cohort', cohort)
+    const queryString = params.toString() ? `?${params.toString()}` : ''
+    return await HttpService.downloadFile(`${this.baseUrl}/professor/export-grade-sheet/${programUuid}${queryString}`)
   }
 
   // Admin - Dashboard
@@ -109,9 +131,9 @@ class NotesService {
     department_id: number
     level?: string
     cohort?: string
-    validation_average: number
   }) => {
-    return await HttpService.post(`${this.baseUrl}/decisions/export-pv-fin-annee`, params, { responseType: 'blob' })
+    const queryParams = new URLSearchParams(params as any).toString()
+    return await HttpService.downloadFile(`${this.baseUrl}/decisions/export-pv-fin-annee?${queryParams}`)
   }
 
   // Décisions - Exporter PV délibération
@@ -122,7 +144,8 @@ class NotesService {
     cohort?: string
     semester: number
   }) => {
-    return await HttpService.post(`${this.baseUrl}/decisions/export-pv-deliberation`, params, { responseType: 'blob' })
+    const queryParams = new URLSearchParams(params as any).toString()
+    return await HttpService.downloadFile(`${this.baseUrl}/decisions/export-pv-deliberation?${queryParams}`)
   }
 
   // Décisions - Exporter récap notes
@@ -131,8 +154,10 @@ class NotesService {
     department_id: number
     level?: string
     cohort?: string
+    semester: number
   }) => {
-    return await HttpService.post(`${this.baseUrl}/decisions/export-recap-notes`, params, { responseType: 'blob' })
+    const queryParams = new URLSearchParams(params as any).toString()
+    return await HttpService.downloadFile(`${this.baseUrl}/decisions/export-recap-notes?${queryParams}`)
   }
 
   // Décisions - Sauvegarder décisions semestrielles
@@ -156,6 +181,29 @@ class NotesService {
     }>
   }) => {
     return await HttpService.post(`${this.baseUrl}/decisions/save-year-decisions`, params)
+  }
+
+  // Décisions - Récupérer étudiants par semestre
+  getStudentsBySemester = async (params: {
+    academic_year_id: number
+    department_id: number
+    level: string
+    cohort: string
+    semester: number
+  }) => {
+    const queryParams = new URLSearchParams(params as any).toString()
+    return await HttpService.get(`${this.baseUrl}/decisions/students-by-semester?${queryParams}`)
+  }
+
+  // Décisions - Récupérer étudiants par année
+  getStudentsByYear = async (params: {
+    academic_year_id: number
+    department_id: number
+    level: string
+    cohort: string
+  }) => {
+    const queryParams = new URLSearchParams(params as any).toString()
+    return await HttpService.get(`${this.baseUrl}/decisions/students-by-year?${queryParams}`)
   }
 
   // Filtres - Récupérer les filières (depuis module Inscription)

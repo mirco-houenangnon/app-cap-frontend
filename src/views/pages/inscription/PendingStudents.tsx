@@ -36,6 +36,8 @@ const PendingStudents: React.FC = () => {
     setSelectedYear,
     selectedEntryDiploma,
     setSelectedEntryDiploma,
+    selectedCohort,
+    setSelectedCohort,
     selectedStatut,
     setSelectedStatut,
     searchQuery,
@@ -47,6 +49,7 @@ const PendingStudents: React.FC = () => {
     sendStudentMail,
     exportData,
     updateStudentStatus,
+    updateStudentLevel,
   } = usePendingStudentsData()
 
   const [editedData, setEditedData] = useState<PendingStudentData[]>(pendingStudents)
@@ -94,6 +97,7 @@ const PendingStudents: React.FC = () => {
       if (name === 'filiere') setSelectedFiliere(value)
       if (name === 'year') setSelectedYear(value)
       if (name === 'entryDiploma') setSelectedEntryDiploma(value)
+      if (name === 'cohort') setSelectedCohort(value)
       if (name === 'statut') setSelectedStatut(value)
       setCurrentPage(1)
     },
@@ -101,6 +105,7 @@ const PendingStudents: React.FC = () => {
       setSelectedFiliere,
       setSelectedYear,
       setSelectedEntryDiploma,
+      setSelectedCohort,
       setSelectedStatut,
       setCurrentPage,
     ]
@@ -233,6 +238,27 @@ const PendingStudents: React.FC = () => {
     [updateStudentStatus]
   )
 
+  const handleLevelChange = useCallback(
+    async (studentId: number, level: string): Promise<void> => {
+      if (!level.trim()) return
+      const result = await updateStudentLevel(studentId, level)
+      if (!result.success) {
+        const errorMessage =
+          !result.success && result.error
+            ? typeof result.error === 'string'
+              ? result.error
+              : result.error?.message
+            : 'Impossible de mettre à jour le niveau.'
+        Swal.fire({
+          icon: 'error',
+          title: 'Erreur',
+          text: errorMessage,
+        })
+      }
+    },
+    [updateStudentLevel]
+  )
+
   const handleSendMail = useCallback(
     async (_type: string): Promise<void> => {
       if (selectedStudents.length === 0) {
@@ -282,40 +308,41 @@ const PendingStudents: React.FC = () => {
 
   const handleExport = useCallback(
     async (format: string): Promise<void> => {
-      if (selectedYear === 'all' || selectedFiliere === 'all') {
+      if (selectedYear === 'all' || selectedFiliere === 'all' || selectedCohort === 'all') {
         Swal.fire({
           icon: 'warning',
           title: 'Sélection requise',
-          text: "Veuillez sélectionner une année académique et une filière avant d'exporter.",
+          text: "Veuillez sélectionner une année académique, une filière et une cohorte avant d'exporter.",
         })
         return
       }
 
       const result = await exportData(format)
       if (result.success && result.url) {
-        const a = document.createElement('a')
-        a.href = result.url
-        a.click()
+        const link = document.createElement('a')
+        link.href = result.url
+        link.download = result.filename || `export_${format}_${Date.now()}`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(result.url)
+        
         Swal.fire({
           icon: 'success',
           title: 'Succès',
           text: `Exportation en ${format} réussie.`,
+          timer: 1500,
+          showConfirmButton: false,
         })
       } else {
-        const errorMessage =
-          !result.success && result.error
-            ? typeof result.error === 'string'
-              ? result.error
-              : result.error?.message
-            : "Échec de l'export."
         Swal.fire({
           icon: 'error',
           title: 'Erreur',
-          text: errorMessage,
+          text: (result as any).error ? (typeof (result as any).error === 'string' ? (result as any).error : (result as any).error?.message) || "Échec de l'export." : "Échec de l'export.",
         })
       }
     },
-    [selectedYear, selectedFiliere, exportData]
+    [selectedYear, selectedFiliere, selectedCohort, exportData]
   )
 
   return (
@@ -331,11 +358,13 @@ const PendingStudents: React.FC = () => {
           selectedYear={selectedYear}
           selectedFiliere={selectedFiliere}
           selectedEntryDiploma={selectedEntryDiploma}
+          selectedCohort={selectedCohort}
           selectedStatut={selectedStatut}
           searchQuery={localSearchQuery}
           onFilterChange={handleFilterChange}
           onSearchChange={handleSearchChange}
           showSearch={true}
+          showCohort={true}
           showStatut={true}
         />
         <PendingStudentsToolbar
@@ -356,6 +385,7 @@ const PendingStudents: React.FC = () => {
           onOpinionChange={handleOpinionChange}
           onCommentChange={handleCommentChange}
           onStatusChange={handleStatusChange}
+          onLevelChange={handleLevelChange}
         />
         {totalPages > 1 && (
           <Pagination

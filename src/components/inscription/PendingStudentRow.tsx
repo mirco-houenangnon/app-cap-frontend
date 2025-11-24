@@ -29,6 +29,7 @@ interface PendingStudentRowProps {
   onOpinionChange: (studentId: number, type: string, value: string) => void
   onCommentChange: (studentId: number, type: string, value: string) => void
   onStatusChange: (studentId: number, field: 'exonere' | 'sponsorise', checked: boolean) => void
+  onLevelChange: (studentId: number, level: string) => void
 }
 
 /**
@@ -46,6 +47,7 @@ const PendingStudentRow: React.FC<PendingStudentRowProps> = ({
   onOpinionChange,
   onCommentChange,
   onStatusChange,
+  onLevelChange,
 }) => {
   const getStatusColor = (status: string) => {
     if (status === 'approved') return 'success'
@@ -75,6 +77,16 @@ const PendingStudentRow: React.FC<PendingStudentRowProps> = ({
 
       {/* Nom et Prénoms */}
       <CTableDataCell>{student.first_name + ' ' + student.last_name}</CTableDataCell>
+
+      {/* Niveau */}
+      <CTableDataCell>
+        <CFormInput
+          value={(student as any).level || ''}
+          onChange={(e) => onLevelChange(student.id, e.target.value)}
+          onBlur={(e) => onLevelChange(student.id, e.target.value)}
+          style={{ minWidth: '80px' }}
+        />
+      </CTableDataCell>
 
       {/* Pièces */}
       <CTableDataCell style={{ minWidth: '250px' }}>

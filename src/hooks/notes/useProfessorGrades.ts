@@ -25,6 +25,7 @@ interface Program {
   retake_weighting: number[]
   column_count: number
   retake_column_count: number
+  validation_average: number
 }
 
 interface GradeSheet {
@@ -61,6 +62,7 @@ const useProfessorGrades = () => {
     setError(null)
     try {
       const response = await notesService.getProgramsByClass(classGroupId)
+      console.log('Programs response:', response.data)
       setPrograms(response.data?.programs || [])
     } catch (err: any) {
       setError(err.message || 'Erreur lors du chargement des programmes')
@@ -70,11 +72,12 @@ const useProfessorGrades = () => {
   }
 
   // Charger la fiche de notation
-  const loadGradeSheet = async (programId: number, cohort?: string) => {
+  const loadGradeSheet = async (programUuid: string | number, cohort?: string) => {
+    const uuid = typeof programUuid === 'string' ? programUuid : programUuid.toString()
     setLoading(true)
     setError(null)
     try {
-      const response = await notesService.getGradeSheet(programId, cohort)
+      const response = await notesService.getGradeSheet(uuid, cohort)
       setGradeSheet(response.data)
     } catch (err: any) {
       setError(err.message || 'Erreur lors du chargement de la fiche de notation')
@@ -84,7 +87,7 @@ const useProfessorGrades = () => {
   }
 
   // Créer une évaluation
-  const createEvaluation = async (programId: number, isRetake = false) => {
+  const createEvaluation = async (programId: string | number, isRetake = false) => {
     setLoading(true)
     setError(null)
     try {
@@ -109,7 +112,7 @@ const useProfessorGrades = () => {
   // Mettre à jour une note
   const updateGrade = async (
     studentId: number,
-    programId: number,
+    programId: string | number,
     position: number,
     value: number
   ) => {
@@ -121,19 +124,6 @@ const useProfessorGrades = () => {
         value
       })
       
-      // Mettre à jour localement
-      if (gradeSheet) {
-        const updatedStudents = gradeSheet.students.map(student => {
-          if (student.student_pending_student_id === studentId) {
-            const newGrades = [...student.grades]
-            newGrades[position] = value
-            return { ...student, grades: newGrades }
-          }
-          return student
-        })
-        setGradeSheet({ ...gradeSheet, students: updatedStudents })
-      }
-      
       return { success: true }
     } catch (err: any) {
       setError(err.message || 'Erreur lors de la mise à jour de la note')
@@ -142,11 +132,11 @@ const useProfessorGrades = () => {
   }
 
   // Dupliquer une note
-  const duplicateGrade = async (programId: number, position: number, value: number) => {
+  const duplicateGrade = async (programId: string | number, columnIndex: number, sessionNormale = true) => {
     setLoading(true)
     setError(null)
     try {
-      await notesService.duplicateGrade(programId, position, value)
+      await notesService.duplicateGrade(programId, columnIndex, sessionNormale)
       // Recharger la fiche
       await loadGradeSheet(programId)
       return { success: true }
@@ -159,7 +149,7 @@ const useProfessorGrades = () => {
   }
 
   // Définir la pondération
-  const setWeighting = async (programId: number, weighting: number[]) => {
+  const setWeighting = async (programId: string | number, weighting: number[]) => {
     setLoading(true)
     setError(null)
     try {
@@ -176,10 +166,13 @@ const useProfessorGrades = () => {
   }
 
   // Exporter la fiche
-  const exportGradeSheet = async (programId: number, includeRetake = false) => {
+  const exportGradeSheet = async (programId: string | number, includeRetake = false, cohort?: string) => {
     try {
-      const response = await notesService.exportGradeSheet(programId, includeRetake)
-      return { success: true, data: response.data }
+      const response = await notesService.exportGradeSheet(programId.toString(), includeRetake, cohort)
+      if (response.success && response.url) {
+        return { success: true, url: response.url, filename: response.filename }
+      }
+      return { success: false, error: 'Erreur lors de l\'export' }
     } catch (err: any) {
       setError(err.message || 'Erreur lors de l\'export')
       return { success: false, error: err.message }
@@ -206,6 +199,23 @@ const useProfessorGrades = () => {
     return Math.round((completedStudents / gradeSheet.students.length) * 100)
   }
 
+  // Supprimer une évaluation
+  const deleteEvaluation = async (programId: string | number, columnIndex: number, sessionNormale = true) => {
+    setLoading(true)
+    setError(null)
+    try {
+      await notesService.deleteEvaluation(programId, columnIndex, sessionNormale)
+      // Recharger la fiche
+      await loadGradeSheet(programId)
+      return { success: true }
+    } catch (err: any) {
+      setError(err.message || 'Erreur lors de la suppression de l\'évaluation')
+      return { success: false, error: err.message }
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return {
     classes,
     programs,
@@ -220,6 +230,7 @@ const useProfessorGrades = () => {
     duplicateGrade,
     setWeighting,
     exportGradeSheet,
+    deleteEvaluation,
     areAllGradesCompleted,
     getCompletionPercentage,
     setError

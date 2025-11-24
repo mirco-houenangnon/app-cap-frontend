@@ -37,7 +37,7 @@ import {
 import { LoadingSpinner } from '@/components'
 import useAdminGrades from '@/hooks/notes/useAdminGrades'
 import useAnneeAcademiquesData from '@/hooks/inscription/useAnneeAcademiqueData'
-import notesService from '@/services/notes.service'
+import useFiltersData from '@/hooks/inscription/useFiltersData'
 
 const AdminConsultation = () => {
   const {
@@ -45,7 +45,9 @@ const AdminConsultation = () => {
     loading,
     error,
     loadGradesByFilters,
-    exportByDepartment
+    exportPVFinAnnee,
+    exportPVDeliberation,
+    exportRecapNotes
   } = useAdminGrades()
 
   const { academicYears } = useAnneeAcademiquesData()
@@ -57,8 +59,7 @@ const AdminConsultation = () => {
   const [selectedCohort, setSelectedCohort] = useState<string | null>(null)
 
   // Données des filtres
-  const [departments, setDepartments] = useState<any[]>([])
-  const [cohorts, setCohorts] = useState<string[]>([])
+  const { departments, levels, cohorts } = useFiltersData(selectedAcademicYear)
 
   // États pour les modales
   const [showValidationModal, setShowValidationModal] = useState(false)
@@ -82,54 +83,21 @@ const AdminConsultation = () => {
   }, [departments])
 
   const levelOptions = useMemo(() => {
-    // Extraire les niveaux uniques depuis les départements
-    const uniqueLevels = new Set<string>()
-    departments.forEach((dept: any) => {
-      const cycle = dept.cycle
-      if (cycle === 'licence professionnelle') {
-        uniqueLevels.add('L1')
-        uniqueLevels.add('L2')
-        uniqueLevels.add('L3')
-      } else if (cycle === 'master') {
-        uniqueLevels.add('M1')
-        uniqueLevels.add('M2')
-      } else if (cycle === 'ingenierie') {
-        uniqueLevels.add('I1')
-        uniqueLevels.add('I2')
-        uniqueLevels.add('I3')
-      }
-    })
-    return Array.from(uniqueLevels).sort().map(level => ({
-      value: level,
-      label: level
+    return levels.map((level: any) => ({
+      value: level.value,
+      label: level.label
     }))
-  }, [departments])
-
-
+  }, [levels])
 
   const cohortOptions = useMemo(() => {
-    return cohorts.map((cohort: string) => ({
-      value: cohort,
-      label: cohort
-    }))
-  }, [cohorts])
-
-  // Charger les données des filtres
-  useEffect(() => {
-    const loadFilters = async () => {
-      try {
-        const [deptRes, cohortRes] = await Promise.all([
-          notesService.getDepartments(),
-          notesService.getCohorts()
-        ])
-        setDepartments(deptRes.data || [])
-        setCohorts(cohortRes.data || [])
-      } catch (error) {
-        console.error('Erreur chargement filtres:', error)
+    return cohorts.map((cohort: any) => {
+      const cohortValue = typeof cohort === 'string' ? cohort : (cohort.cohort || cohort.value || cohort)
+      return {
+        value: cohortValue,
+        label: cohortValue
       }
-    }
-    loadFilters()
-  }, [])
+    })
+  }, [cohorts])
 
   // Charger l'année académique courante par défaut
   useEffect(() => {
@@ -151,12 +119,14 @@ const AdminConsultation = () => {
 
   // Charger les données filtrées
   useEffect(() => {
-    loadGradesByFilters({
-      academic_year_id: selectedAcademicYear || undefined,
-      department_id: selectedDepartment || undefined,
-      level: selectedLevel || undefined,
-      cohort: selectedCohort || undefined
-    })
+    if (!selectedAcademicYear) return
+    
+    const filters: any = { academic_year_id: selectedAcademicYear }
+    if (selectedDepartment) filters.department_id = selectedDepartment
+    if (selectedLevel) filters.level = selectedLevel
+    if (selectedCohort) filters.cohort = selectedCohort
+    
+    loadGradesByFilters(filters)
   }, [selectedAcademicYear, selectedDepartment, selectedLevel, selectedCohort])
 
   const handleExportPVFinAnnee = () => {
@@ -167,28 +137,38 @@ const AdminConsultation = () => {
     setShowSemesterModal(true)
   }
 
-  const handleExportRecapNotes = async () => {
+  const [showRecapSemesterModal, setShowRecapSemesterModal] = useState(false)
+  const [recapSemester, setRecapSemester] = useState<number>(1)
+
+  const handleExportRecapNotes = () => {
+    setShowRecapSemesterModal(true)
+  }
+
+  const confirmExportRecapNotes = async () => {
     if (!selectedAcademicYear || !selectedDepartment) {
       alert('Veuillez sélectionner une année académique et une filière')
       return
     }
 
     try {
-      const response = await notesService.exportRecapNotes({
+      const result = await exportRecapNotes({
         academic_year_id: selectedAcademicYear,
         department_id: selectedDepartment,
         level: selectedLevel || undefined,
         cohort: selectedCohort || undefined
-      })
+      } as any)
       
-      // Télécharger le fichier PDF
-      const url = window.URL.createObjectURL(new Blob([response.data]))
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `Recap_Notes_${selectedAcademicYear}.pdf`)
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
+      if (result.success && result.url) {
+        const link = document.createElement('a')
+        link.href = result.url
+        link.download = result.filename || `Recap_Notes_${selectedAcademicYear}.pdf`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(result.url)
+      }
+      
+      setShowRecapSemesterModal(false)
     } catch (error) {
       console.error('Erreur lors de l\'export:', error)
       alert('Erreur lors de l\'export du récap')
@@ -202,7 +182,7 @@ const AdminConsultation = () => {
     }
 
     try {
-      const response = await notesService.exportPVFinAnnee({
+      const result = await exportPVFinAnnee({
         academic_year_id: selectedAcademicYear,
         department_id: selectedDepartment,
         level: selectedLevel || undefined,
@@ -210,14 +190,15 @@ const AdminConsultation = () => {
         validation_average: validationAverage
       })
       
-      // Télécharger le fichier PDF
-      const url = window.URL.createObjectURL(new Blob([response.data]))
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `PV_Fin_Annee_${selectedAcademicYear}.pdf`)
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
+      if (result.success && result.url) {
+        const link = document.createElement('a')
+        link.href = result.url
+        link.download = result.filename || `PV_Fin_Annee_${selectedAcademicYear}.pdf`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(result.url)
+      }
       
       setShowValidationModal(false)
     } catch (error) {
@@ -226,6 +207,16 @@ const AdminConsultation = () => {
     }
   }
 
+  const isFiltersComplete = selectedAcademicYear && selectedDepartment && selectedLevel && selectedCohort
+
+  console.log('AdminConsultation - Filters:', {
+    selectedAcademicYear,
+    selectedDepartment,
+    selectedLevel,
+    selectedCohort,
+    isFiltersComplete
+  })
+
   const confirmExportPVDeliberation = async () => {
     if (!selectedAcademicYear || !selectedDepartment) {
       alert('Veuillez sélectionner une année académique et une filière')
@@ -233,7 +224,7 @@ const AdminConsultation = () => {
     }
 
     try {
-      const response = await notesService.exportPVDeliberation({
+      const result = await exportPVDeliberation({
         academic_year_id: selectedAcademicYear,
         department_id: selectedDepartment,
         level: selectedLevel || undefined,
@@ -241,14 +232,15 @@ const AdminConsultation = () => {
         semester: selectedSemester
       })
       
-      // Télécharger le fichier PDF
-      const url = window.URL.createObjectURL(new Blob([response.data]))
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `PV_Deliberation_S${selectedSemester}_${selectedAcademicYear}.pdf`)
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
+      if (result.success && result.url) {
+        const link = document.createElement('a')
+        link.href = result.url
+        link.download = result.filename || `PV_Deliberation_S${selectedSemester}_${selectedAcademicYear}.pdf`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(result.url)
+      }
       
       setShowSemesterModal(false)
     } catch (error) {
@@ -333,11 +325,16 @@ const AdminConsultation = () => {
           <strong>Actions d'Export</strong>
         </CCardHeader>
         <CCardBody>
+          {!isFiltersComplete && (
+            <CAlert color="info" className="mb-3">
+              Veuillez sélectionner tous les filtres (Année, Filière, Niveau, Cohorte) pour activer les exports.
+            </CAlert>
+          )}
           <CButtonGroup className="me-3">
             <CButton
               color="primary"
               onClick={handleExportPVFinAnnee}
-              disabled={!selectedAcademicYear || !selectedDepartment}
+              disabled={!isFiltersComplete}
             >
               <CIcon icon={cilClipboard} className="me-1" />
               PV Fin d'Année
@@ -346,7 +343,7 @@ const AdminConsultation = () => {
             <CButton
               color="info"
               onClick={handleExportPVDeliberation}
-              disabled={!selectedAcademicYear || !selectedDepartment}
+              disabled={!isFiltersComplete}
             >
               <CIcon icon={cilCalendar} className="me-1" />
               PV Délibération Semestrielle
@@ -355,7 +352,7 @@ const AdminConsultation = () => {
             <CButton
               color="success"
               onClick={handleExportRecapNotes}
-              disabled={!selectedAcademicYear || !selectedDepartment}
+              disabled={!isFiltersComplete}
             >
               <CIcon icon={cilCloudDownload} className="me-1" />
               Récap Notes Session Normale
@@ -373,13 +370,47 @@ const AdminConsultation = () => {
       {/* Tableau des résultats */}
       <CCard>
         <CCardHeader>
-          <strong>Aperçu des Notes</strong>
+          <strong>Programmes et Notes</strong>
         </CCardHeader>
         <CCardBody>
-          <div className="text-center text-muted py-5">
-            <p>Sélectionnez les filtres ci-dessus pour consulter les notes.</p>
-            <p>Utilisez les boutons d'export pour générer les PV et récapitulatifs.</p>
-          </div>
+          {gradesByFilters && gradesByFilters.length > 0 ? (
+            <div className="table-responsive">
+              <CTable striped hover>
+                <CTableHead>
+                  <CTableRow>
+                    <CTableHeaderCell>Programme</CTableHeaderCell>
+                    <CTableHeaderCell>Classe</CTableHeaderCell>
+                    <CTableHeaderCell>Professeur</CTableHeaderCell>
+                    <CTableHeaderCell className="text-center">Étudiants</CTableHeaderCell>
+                    <CTableHeaderCell className="text-center">Avec Notes</CTableHeaderCell>
+                    <CTableHeaderCell className="text-center">Moyenne Classe</CTableHeaderCell>
+                  </CTableRow>
+                </CTableHead>
+                <CTableBody>
+                  {gradesByFilters.map((program: any) => (
+                    <CTableRow key={program.program_id}>
+                      <CTableDataCell>
+                        <strong>{program.program_name}</strong>
+                      </CTableDataCell>
+                      <CTableDataCell>{program.class_name}</CTableDataCell>
+                      <CTableDataCell>{program.professor}</CTableDataCell>
+                      <CTableDataCell className="text-center">{program.total_students}</CTableDataCell>
+                      <CTableDataCell className="text-center">{program.students_with_grades}</CTableDataCell>
+                      <CTableDataCell className="text-center">
+                        <CBadge color={program.average_class >= 12 ? 'success' : program.average_class >= 10 ? 'info' : 'danger'}>
+                          {program.average_class ? program.average_class.toFixed(2) : '-'}
+                        </CBadge>
+                      </CTableDataCell>
+                    </CTableRow>
+                  ))}
+                </CTableBody>
+              </CTable>
+            </div>
+          ) : (
+            <div className="text-center text-muted py-5">
+              <p>Sélectionnez les filtres ci-dessus pour consulter les notes.</p>
+            </div>
+          )}
         </CCardBody>
       </CCard>
 
@@ -442,6 +473,36 @@ const AdminConsultation = () => {
           <CButton color="primary" onClick={confirmExportPVDeliberation}>
             <CIcon icon={cilCloudDownload} className="me-1" />
             Générer PV
+          </CButton>
+        </CModalFooter>
+      </CModal>
+
+      {/* Modal Choix Semestre pour Récap Notes */}
+      <CModal visible={showRecapSemesterModal} onClose={() => setShowRecapSemesterModal(false)}>
+        <CModalHeader>
+          <CModalTitle>Choisir le Semestre</CModalTitle>
+        </CModalHeader>
+        <CModalBody>
+          <p>Sélectionnez le semestre pour le récapitulatif des notes :</p>
+          <div className="mb-3">
+            <label className="form-label">Semestre</label>
+            <select
+              className="form-select"
+              value={recapSemester}
+              onChange={(e) => setRecapSemester(parseInt(e.target.value))}
+            >
+              <option value={1}>Semestre 1 (Impair)</option>
+              <option value={2}>Semestre 2 (Pair)</option>
+            </select>
+          </div>
+        </CModalBody>
+        <CModalFooter>
+          <CButton color="secondary" onClick={() => setShowRecapSemesterModal(false)}>
+            Annuler
+          </CButton>
+          <CButton color="primary" onClick={confirmExportRecapNotes}>
+            <CIcon icon={cilCloudDownload} className="me-1" />
+            Générer Récap
           </CButton>
         </CModalFooter>
       </CModal>

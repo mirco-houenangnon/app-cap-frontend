@@ -195,6 +195,13 @@ class InscriptionService {
   }
 
   /**
+   * Met à jour le niveau d'études d'un étudiant
+   */
+  updateLevel = async (id: number | string, level: string) => {
+    return await HttpService.patch(`${INSCRIPTION_ROUTES.PENDING_STUDENTS}/${id}/level`, { level })
+  }
+
+  /**
    * Met à jour les pièces d'un étudiant
    */
   updatePieces = async (id: number | string, pieces: any) => {
@@ -212,7 +219,18 @@ class InscriptionService {
    * Exporte les données
    */
   exportData = async (endpoint: string) => {
-    return await HttpService.downloadFile(endpoint)
+    const result = await HttpService.downloadFile(endpoint)
+    
+    // Extraire le filename du header Content-Disposition si disponible
+    if ((result as any).headers && (result as any).headers['content-disposition']) {
+      const disposition = (result as any).headers['content-disposition']
+      const filenameMatch = disposition.match(/filename="?([^"]+)"?/)
+      if (filenameMatch && filenameMatch[1]) {
+        return { ...result, filename: filenameMatch[1] }
+      }
+    }
+    
+    return result
   }
 
   /**
@@ -226,7 +244,8 @@ class InscriptionService {
     niveau: string,
     page: number,
     search: string,
-    perPage?: number
+    perPage?: number,
+    cohort?: string
   ) => {
     const params = new URLSearchParams()
     if (year !== 'all') params.append('year', year)
@@ -234,6 +253,7 @@ class InscriptionService {
     if (entryDiploma !== 'all') params.append('entry_diploma', entryDiploma)
     if (redoublant !== 'all') params.append('redoublant', redoublant)
     if (niveau !== 'all') params.append('niveau', niveau)
+    if (cohort && cohort !== 'all') params.append('cohort', cohort)
     if (search) params.append('search', search)
     params.append('page', page.toString())
     if (perPage) params.append('per_page', perPage.toString())
@@ -276,11 +296,12 @@ class InscriptionService {
   /**
    * Exporte la liste des étudiants en PDF
    */
-  exportList = async (type: string, year: string, filiere: string, niveau: string, groupe?: string) => {
+  exportList = async (type: string, year: string, filiere: string, niveau: string, cohort: string, groupe?: string) => {
     const params = new URLSearchParams({
       year,
       filiere,
-      niveau
+      niveau,
+      cohort
     })
     
     if (groupe) {
@@ -365,15 +386,25 @@ class InscriptionService {
   }
 
   /**
+   * Récupère les cohortes pour une année académique
+   */
+  getCohorts = async (academicYearId?: number | string) => {
+    const params = academicYearId ? `?academic_year_id=${academicYearId}` : ''
+    const response = await HttpService.get(`${INSCRIPTION_ROUTES.BASE}/cohortes${params}`)
+    return response.data || []
+  }
+
+  /**
    * Récupère toutes les options de filtrage (filières, années, diplômes d'entrée, statuts, niveaux)
    */
-  filterOptions = async () => {
+  filterOptions = async (academicYearId?: number | string) => {
     try {
-      const [filieres, years, entryDiplomas, niveaux] = await Promise.all([
+      const [filieres, years, entryDiplomas, niveaux, cohorts] = await Promise.all([
         this.getFilieres(),
         this.academicYears(),
         this.getEntryDiplomas(),
-        this.getAllNiveaux()
+        this.getAllNiveaux(),
+        academicYearId ? this.getCohorts(academicYearId) : Promise.resolve([])
       ])
       
       // Statuts disponibles pour les étudiants en attente
@@ -388,7 +419,8 @@ class InscriptionService {
         years: years || [],
         entryDiplomas: entryDiplomas?.data || [],
         statuts,
-        niveaux: niveaux || []
+        niveaux: niveaux || [],
+        cohorts: cohorts || []
       }
     } catch (error) {
       console.error('Erreur lors de la récupération des options de filtrage:', error)
@@ -397,7 +429,8 @@ class InscriptionService {
         years: [],
         entryDiplomas: [],
         statuts: [],
-        niveaux: []
+        niveaux: [],
+        cohorts: []
       }
     }
   }
@@ -435,13 +468,23 @@ class InscriptionService {
   /**
    * Récupère les groupes d'une classe
    */
-  getClassGroups = async (academicYearId: number, departmentId: number, studyLevel: string) => {
+  getClassGroups = async (academicYearId: number, departmentId: number, studyLevel: string, cohort?: string) => {
     const params = new URLSearchParams({
       academic_year_id: academicYearId.toString(),
       department_id: departmentId.toString(),
       study_level: studyLevel,
     })
+    if (cohort && cohort !== 'all') {
+      params.append('cohort', cohort)
+    }
     return await HttpService.get(`${INSCRIPTION_ROUTES.CLASS_GROUPS}?${params.toString()}`)
+  }
+
+  /**
+   * Récupère les groupes par classe (pour création de programmes)
+   */
+  getClassGroupsByClass = async (classGroupId: number) => {
+    return await HttpService.get(`${INSCRIPTION_ROUTES.CLASS_GROUPS}/by-class/${classGroupId}`)
   }
 
   /**
@@ -458,6 +501,23 @@ class InscriptionService {
     }>
   }) => {
     return await HttpService.post(INSCRIPTION_ROUTES.CLASS_GROUPS, data)
+  }
+  
+  /**
+   * Crée un groupe unique par défaut avec tous les étudiants d'une cohorte
+   */
+  createDefaultClassGroup = async (
+    academicYearId: number,
+    departmentId: number,
+    studyLevel: string,
+    cohort: string
+  ) => {
+    return await HttpService.post(`${INSCRIPTION_ROUTES.CLASS_GROUPS}/create-default`, {
+      academic_year_id: academicYearId,
+      department_id: departmentId,
+      study_level: studyLevel,
+      cohort: cohort,
+    })
   }
 
   /**
