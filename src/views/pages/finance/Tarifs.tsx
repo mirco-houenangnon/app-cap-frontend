@@ -161,43 +161,20 @@ const Tarifs = () => {
         type: tarifData.type || 'inscription',
         libelle: tarifData.libelle || '',
         amount: tarifData.amount?.toString() || '',
-        academic_year_id: tarifData.academic_year_id?.toString()
-      }))
-    }
-    
-    setShowModal(true)
-  }
-
-  const handleEdit = async (tarif: any) => {
-    setEditingTarif(tarif)
-    
-    // Charger les détails complets du tarif avec ses classes
-    try {
-      const response = await financeService.getTarifById(tarif.id)
-      const tarifData = response.data
-      
-      setFormData({
-        type: tarifData.type || 'inscription',
-        libelle: tarifData.libelle || '',
-        amount: tarifData.amount?.toString() || '',
         academic_year_id: tarifData.academic_year_id?.toString() || '',
         is_active: tarifData.is_active ?? true,
         penalty_amount: tarifData.penalty_amount?.toString() || '',
         penalty_type: tarifData.penalty_type || 'fixed',
         penalty_active: tarifData.penalty_active ?? false,
         class_groups: tarifData.class_groups || [],
-      })
+      });
       
-      // Charger les classes disponibles pour cette année
-      if (tarifData.academic_year_id) {
-        await loadAvailableClasses(tarifData.academic_year_id)
-      }
-      
-      setShowModal(true)
+      setShowModal(true);
     } catch (error) {
-      console.error('Erreur chargement tarif:', error)
+      console.error('Erreur chargement tarif:', error);
     }
-  }
+  };
+
     if (window.confirm('Êtes-vous sûr de vouloir supprimer ce tarif ?')) {
       try {
         await deleteTarif(id)
