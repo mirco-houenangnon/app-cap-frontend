@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import Swal from 'sweetalert2'
 import {
   CCard,
   CCardBody,
@@ -175,14 +176,28 @@ const Tarifs = () => {
     }
   };
 
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce tarif ?')) {
+  const handleDelete = async (id: number) => {
+    const result = await Swal.fire({
+      title: 'Êtes-vous sûr ?',
+      text: 'Cette action est irréversible',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Oui, supprimer',
+      cancelButtonText: 'Annuler'
+    });
+
+    if (result.isConfirmed) {
       try {
-        await deleteTarif(id)
+        await deleteTarif(id);
+        Swal.fire('Supprimé !', 'Le tarif a été supprimé.', 'success');
       } catch (error) {
-        console.error('Erreur lors de la suppression:', error)
+        console.error('Erreur lors de la suppression:', error);
+        Swal.fire('Erreur', 'Impossible de supprimer le tarif', 'error');
       }
     }
-  }
+  };
 
   if (loading) {
     return <LoadingSpinner fullPage message="Chargement des tarifs..." />
