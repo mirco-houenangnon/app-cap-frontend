@@ -147,7 +147,7 @@ const StudentsFilter: React.FC<StudentsFilterProps> = ({
   return (
     <>
       <CRow className="mb-3">
-        <CCol xs={12} md={showNiveau || showRedoublant ? 3 : 4}>
+        <CCol xs={12} md={3}>
           <label className="form-label fw-semibold">Année Académique</label>
           <Select
             options={selectOptions.year}
@@ -159,13 +159,54 @@ const StudentsFilter: React.FC<StudentsFilterProps> = ({
         </CCol>
 
         {selectedFiliere !== undefined && (
-          <CCol xs={12} md={showNiveau || showRedoublant ? 3 : 4}>
+          <CCol xs={12} md={3}>
             <label className="form-label fw-semibold">Filière</label>
             <Select
               options={selectOptions.filiere}
               value={selectOptions.filiere.find((opt) => opt.value === selectedFiliere)}
               onChange={(option) => onFilterChange?.('filiere', option)}
               placeholder="Sélectionner une filière..."
+              isClearable
+            />
+          </CCol>
+        )}
+
+        {selectedEntryDiploma !== undefined && (
+          <CCol xs={12} md={3}>
+            <label className="form-label fw-semibold">Diplôme d'entrée</label>
+            <Select
+              options={selectOptions.entryDiploma}
+              value={selectOptions.entryDiploma.find((opt) => opt.value === selectedEntryDiploma)}
+              onChange={(option) => onFilterChange?.('entryDiploma', option)}
+              placeholder="Sélectionner un diplôme..."
+              isClearable
+            />
+          </CCol>
+        )}
+
+        {showCohort && selectedCohort !== undefined && (
+          <CCol xs={12} md={3}>
+            <label className="form-label fw-semibold">Cohorte</label>
+            <Select
+              options={selectOptions.cohort}
+              value={selectOptions.cohort.find((opt) => opt.value === selectedCohort)}
+              onChange={(option) => onFilterChange?.('cohort', option)}
+              placeholder="Sélectionner une cohorte..."
+              isClearable
+            />
+          </CCol>
+        )}
+      </CRow>
+
+      <CRow className="mb-3">
+        {showStatut && selectedStatut !== undefined && (
+          <CCol xs={12} md={3}>
+            <label className="form-label fw-semibold">Statut</label>
+            <Select
+              options={selectOptions.statut}
+              value={selectOptions.statut.find((opt) => opt.value === selectedStatut)}
+              onChange={(option) => onFilterChange?.('statut', option)}
+              placeholder="Sélectionner un statut..."
               isClearable
             />
           </CCol>
@@ -184,32 +225,6 @@ const StudentsFilter: React.FC<StudentsFilterProps> = ({
           </CCol>
         )}
 
-        {showCohort && selectedCohort !== undefined && (
-          <CCol xs={12} md={3}>
-            <label className="form-label fw-semibold">Cohorte</label>
-            <Select
-              options={selectOptions.cohort}
-              value={selectOptions.cohort.find((opt) => opt.value === selectedCohort)}
-              onChange={(option) => onFilterChange?.('cohort', option)}
-              placeholder="Sélectionner une cohorte..."
-              isClearable
-            />
-          </CCol>
-        )}
-
-        {selectedEntryDiploma !== undefined && (
-          <CCol xs={12} md={showNiveau || showRedoublant ? 2 : 4}>
-            <label className="form-label fw-semibold">Diplôme d'entrée</label>
-            <Select
-              options={selectOptions.entryDiploma}
-              value={selectOptions.entryDiploma.find((opt) => opt.value === selectedEntryDiploma)}
-              onChange={(option) => onFilterChange?.('entryDiploma', option)}
-              placeholder="Sélectionner un diplôme..."
-              isClearable
-            />
-          </CCol>
-        )}
-
         {showRedoublant && selectedRedoublant !== undefined && (
           <CCol xs={12} md={3}>
             <label className="form-label fw-semibold">Redoublant</label>
@@ -223,23 +238,9 @@ const StudentsFilter: React.FC<StudentsFilterProps> = ({
           </CCol>
         )}
 
-        {showStatut && selectedStatut !== undefined && (
-          <CCol xs={12} md={showNiveau || showRedoublant ? 2 : 3}>
-            <label className="form-label fw-semibold">Statut</label>
-            <Select
-              options={selectOptions.statut}
-              value={selectOptions.statut.find((opt) => opt.value === selectedStatut)}
-              onChange={(option) => onFilterChange?.('statut', option)}
-              placeholder="Sélectionner un statut..."
-              isClearable
-            />
-          </CCol>
-        )}
-      </CRow>
-
-      {showSearch && onSearchChange && (
-        <CRow className="mb-3">
+        {showSearch && onSearchChange && (
           <CCol xs={12} md={6}>
+            <label className="form-label fw-semibold">Recherche</label>
             <CInputGroup>
               <CFormInput
                 placeholder="Rechercher..."
@@ -248,8 +249,8 @@ const StudentsFilter: React.FC<StudentsFilterProps> = ({
               />
             </CInputGroup>
           </CCol>
-        </CRow>
-      )}
+        )}
+      </CRow>
     </>
   )
 }

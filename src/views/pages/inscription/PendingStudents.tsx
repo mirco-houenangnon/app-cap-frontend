@@ -6,7 +6,7 @@ import {
   PendingStudentsToolbar,
   StudentsFilter,
 } from '../../../components/inscription'
-import { Pagination } from '../../../components/common'
+import { Pagination, LoadingSpinner } from '../../../components/common'
 import usePendingStudentsData from '../../../hooks/inscription/usePendingSudentsData'
 import { useDebounce } from '../../../hooks/common'
 import Swal from 'sweetalert2'
@@ -45,11 +45,13 @@ const PendingStudents: React.FC = () => {
     currentPage,
     setCurrentPage,
     totalPages,
+    loading,
     error,
     sendStudentMail,
     exportData,
     updateStudentStatus,
     updateStudentLevel,
+    renamePiece,
   } = usePendingStudentsData()
 
   const [editedData, setEditedData] = useState<PendingStudentData[]>(pendingStudents)
@@ -308,16 +310,41 @@ const PendingStudents: React.FC = () => {
 
   const handleExport = useCallback(
     async (format: string): Promise<void> => {
-      if (selectedYear === 'all' || selectedFiliere === 'all' || selectedCohort === 'all') {
-        Swal.fire({
-          icon: 'warning',
-          title: 'Sélection requise',
-          text: "Veuillez sélectionner une année académique, une filière et une cohorte avant d'exporter.",
-        })
-        return
+      if (format === 'emails') {
+        // Pour l'export des emails, on n'a besoin que de l'année académique
+        if (selectedYear === 'all') {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Sélection requise',
+            text: "Veuillez sélectionner une année académique avant d'exporter les emails.",
+          })
+          return
+        }
+      } else {
+        // Pour les autres exports, on garde la validation complète
+        if (selectedYear === 'all' || selectedFiliere === 'all' || selectedCohort === 'all') {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Sélection requise',
+            text: "Veuillez sélectionner une année académique, une filière et une cohorte avant d'exporter.",
+          })
+          return
+        }
       }
 
+      Swal.fire({
+        title: 'Exportation en cours...',
+        text: 'Veuillez patienter',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading()
+        }
+      })
+
       const result = await exportData(format)
+      
+      Swal.close()
+      
       if (result.success && result.url) {
         const link = document.createElement('a')
         link.href = result.url
@@ -373,26 +400,33 @@ const PendingStudents: React.FC = () => {
           onSendMail={handleSendMail}
           onExport={handleExport}
         />
-        <PendingStudentsTable
-          students={editedData}
-          currentPage={currentPage}
-          selectedStudents={selectedStudents}
-          isSpecialFiliere={isSpecialFiliere}
-          opinionOptions={opinionOptions}
-          onSelectAll={handleSelectAll}
-          onSelectStudent={handleSelectStudent}
-          onOpenDocument={handleOpenDocument}
-          onOpinionChange={handleOpinionChange}
-          onCommentChange={handleCommentChange}
-          onStatusChange={handleStatusChange}
-          onLevelChange={handleLevelChange}
-        />
-        {totalPages > 1 && (
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-          />
+        {loading ? (
+          <LoadingSpinner message="Chargement des étudiants..." />
+        ) : (
+          <>
+            <PendingStudentsTable
+              students={editedData}
+              currentPage={currentPage}
+              selectedStudents={selectedStudents}
+              isSpecialFiliere={isSpecialFiliere}
+              opinionOptions={opinionOptions}
+              onSelectAll={handleSelectAll}
+              onSelectStudent={handleSelectStudent}
+              onOpenDocument={handleOpenDocument}
+              onOpinionChange={handleOpinionChange}
+              onCommentChange={handleCommentChange}
+              onStatusChange={handleStatusChange}
+              onLevelChange={handleLevelChange}
+              onRenamePiece={renamePiece}
+            />
+            {totalPages > 1 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
+            )}
+          </>
         )}
       </CCardBody>
     </CCard>

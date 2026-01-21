@@ -7,7 +7,7 @@ export default defineConfig(() => {
   return {
     base: '/',
     define: {
-      __APP_BASE__: '"/app-cap-frontend/"'
+      __APP_BASE__: '/app-cap-frontend/'
     },
     build: {
       outDir: 'build',

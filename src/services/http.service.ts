@@ -31,7 +31,7 @@ export class HttpService {
   constructor() {
     this._axios = Axios.create({
       baseURL: API_URL,
-      timeout: 30000,
+      timeout: 100000,
       headers: {
         // 'Content-Type': 'application/json',
         Accept: 'application/json',
@@ -76,11 +76,13 @@ export class HttpService {
   downloadFile = async (url: string, options?: { method?: string; body?: string }): Promise<{success: true, url: string, filename?: string}> => {
     try {
       const method = options?.method?.toLowerCase() || 'get';
+      const token = localStorage.getItem('token');
       const config: AxiosRequestConfig = {
         responseType: 'blob',
         headers: {
           'Accept': 'application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
           'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
       };
       
@@ -95,11 +97,17 @@ export class HttpService {
       
       const contentDisposition = response.headers['content-disposition'];
       let filename = undefined;
+      console.log('All headers:', response.headers);
+      console.log('Content-Disposition:', contentDisposition);
       if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename="?(.+?)"?$/i);
-        if (filenameMatch) {
-          filename = filenameMatch[1];
+        const filenameMatch = contentDisposition.match(/filename[*]?=['"]?([^'"\s;]+)['"]?/i);
+        console.log('Filename match result:', filenameMatch);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = decodeURIComponent(filenameMatch[1]);
+          console.log('Extracted filename:', filename);
         }
+      } else {
+        console.log('No Content-Disposition header found');
       }
       
       return { success: true, url: blobUrl, filename };
@@ -159,9 +167,10 @@ private request<T = any>(options: RequestOptions): Promise<T> {
         })
         .then((res: AxiosResponse<ApiResponse<T>>) => resolve(res.data as T))
         .catch((ex: any) => {
-          const error: ApiError = ex.response?.data || {
-            message: ex.message || 'Une erreur est survenue',
-            status: ex.response?.status,
+          const error: ApiError = {
+            message: ex.response?.data?.message || ex.message || 'Une erreur est survenue',
+            status: ex.response?.status || 500,
+            ...(ex.response?.data || {})
           };
           reject(error);
         });
@@ -173,9 +182,10 @@ private request<T = any>(options: RequestOptions): Promise<T> {
         })
         .then((res: AxiosResponse<ApiResponse<T>>) => resolve(res.data as T))
         .catch((ex: any) => {
-          const error: ApiError = ex.response?.data || {
-            message: ex.message || 'Une erreur est survenue',
-            status: ex.response?.status,
+          const error: ApiError = {
+            message: ex.response?.data?.message || ex.message || 'Une erreur est survenue',
+            status: ex.response?.status || 500,
+            ...(ex.response?.data || {})
           };
           reject(error);
         });

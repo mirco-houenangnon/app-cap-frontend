@@ -143,7 +143,7 @@ export interface PendingStudentData {
     name?: string;
     url?: string;
   }>;
-  documents?: Record<string, string>;
+  documents?: Record<string, string | { url?: string; custom_name: string }>;
   opinionCuca?: string;
   commentaireCuca?: string;
   opinionCuo?: string;

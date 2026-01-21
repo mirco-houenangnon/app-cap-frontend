@@ -43,9 +43,18 @@ const PendingStudentsToolbar: React.FC<PendingStudentsToolbarProps> = ({
           color="primary"
           variant="outline"
           size="sm"
+          className="me-2"
           onClick={() => onExport('word')}
         >
           Exporter Word
+        </CButton>
+        <CButton
+          color="success"
+          variant="outline"
+          size="sm"
+          onClick={() => onExport('emails')}
+        >
+          Exporter Emails
         </CButton>
       </div>
 

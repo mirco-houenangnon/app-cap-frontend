@@ -209,6 +209,16 @@ class InscriptionService {
   }
 
   /**
+   * Renomme une pièce pour un étudiant
+   */
+  renamePiece = async (id: number | string, pieceKey: string, customName: string) => {
+    return await HttpService.patch(`${INSCRIPTION_ROUTES.PENDING_STUDENTS}/${id}/pieces/rename`, {
+      piece_key: pieceKey,
+      custom_name: customName
+    })
+  }
+
+  /**
    * Envoie un mail aux étudiants
    */
   sendMail = async (studentsData: any) => {
@@ -400,11 +410,11 @@ class InscriptionService {
   filterOptions = async (academicYearId?: number | string) => {
     try {
       const [filieres, years, entryDiplomas, niveaux, cohorts] = await Promise.all([
-        this.getFilieres(),
-        this.academicYears(),
-        this.getEntryDiplomas(),
-        this.getAllNiveaux(),
-        academicYearId ? this.getCohorts(academicYearId) : Promise.resolve([])
+        this.getFilieres().catch(() => []),
+        this.academicYears().catch(() => []),
+        this.getEntryDiplomas().catch(() => ({ data: [] })),
+        this.getAllNiveaux().catch(() => []),
+        academicYearId ? this.getCohorts(academicYearId).catch(() => []) : Promise.resolve([])
       ])
       
       // Statuts disponibles pour les étudiants en attente
@@ -428,7 +438,11 @@ class InscriptionService {
         filieres: [],
         years: [],
         entryDiplomas: [],
-        statuts: [],
+        statuts: [
+          { value: 'pending', label: 'En attente' },
+          { value: 'approved', label: 'Approuvé' },
+          { value: 'rejected', label: 'Rejeté' }
+        ],
         niveaux: [],
         cohorts: []
       }

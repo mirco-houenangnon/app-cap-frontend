@@ -10,7 +10,7 @@ const SoutenanceRoutes = () => {
         <Route path="/periods" element={<SubmissionPeriods />} />
         <Route path="/submissions" element={<SubmissionsList />} />
         <Route path="/jury" element={<JuryManagement />} />
-        <Route path="/" element={<Navigate to="/soutenance/periods" replace />} />
+        <Route path="/" element={<Navigate to="/soutenances/periods" replace />} />
         <Route path="*" element={<Navigate to="/404" replace />} />
       </Routes>
     </Suspense>

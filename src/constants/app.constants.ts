@@ -5,24 +5,22 @@
 // Rôles utilisateurs
 export const ROLES = {
   ADMIN: 'admin',
-  DIRECTEUR: 'directeur',
+  CHEF_CAP: 'chef-cap',
+  CHEF_DIVISION: 'chef-division',
   SECRETAIRE: 'secretaire',
-  ENSEIGNANT: 'enseignant',
   ETUDIANT: 'etudiant',
   COMPTABLE: 'comptable',
-  BIBLIOTHECAIRE: 'bibliothecaire',
 } as const;
 
 export type UserRole = typeof ROLES[keyof typeof ROLES];
 
 export const ROLE_NAMES: Record<UserRole, string> = {
   [ROLES.ADMIN]: 'Administrateur',
-  [ROLES.DIRECTEUR]: 'Directeur',
+  [ROLES.CHEF_CAP]: 'Chef CAP',
+  [ROLES.CHEF_DIVISION]: 'Chef Division',
   [ROLES.SECRETAIRE]: 'Secrétaire',
-  [ROLES.ENSEIGNANT]: 'Enseignant',
   [ROLES.ETUDIANT]: 'Étudiant',
   [ROLES.COMPTABLE]: 'Comptable',
-  [ROLES.BIBLIOTHECAIRE]: 'Bibliothécaire',
 };
 
 // Statuts

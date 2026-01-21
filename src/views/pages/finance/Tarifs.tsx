@@ -26,157 +26,163 @@ import {
 import CIcon from '@coreui/icons-react'
 import { cilPlus, cilPencil, cilTrash } from '@coreui/icons'
 import { LoadingSpinner } from '@/components'
-import useTarifs from '@/hooks/finance/useTarifs'
-import useTarifForm from '@/hooks/finance/useTarifForm'
-import financeService from '@/services/finance.service'
+import academicLevelFeeService, { type AcademicLevelFee, type CreateAcademicLevelFeeData } from '@/services/academicLevelFee.service'
+import inscriptionService from '@/services/inscription.service'
 
 const Tarifs = () => {
-  const {
-    tarifs,
-    loading,
-    error,
-    createTarif,
-    updateTarif,
-    deleteTarif,
-  } = useTarifs()
-
+  const [tarifs, setTarifs] = useState<AcademicLevelFee[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [showModal, setShowModal] = useState(false)
-  const [editingTarif, setEditingTarif] = useState<any>(null)
-  const [formData, setFormData] = useState({
-    type: 'inscription',
-    libelle: '',
-    amount: '',
-    academic_year_id: '',
+  const [editingTarif, setEditingTarif] = useState<AcademicLevelFee | null>(null)
+  const [academicYears, setAcademicYears] = useState<any[]>([])
+  const [departments, setDepartments] = useState<any[]>([])
+  
+  const [formData, setFormData] = useState<CreateAcademicLevelFeeData>({
+    academic_year_id: 0,
+    department_id: 0,
+    study_level: '',
+    registration_fee: 0,
+    uemoa_training_fee: 0,
+    non_uemoa_training_fee: 0,
+    exempted_training_fee: 0,
     is_active: true,
-    penalty_amount: '',
-    penalty_type: 'fixed',
-    penalty_active: false,
-    class_groups: [] as any[],
   })
+  const [selectedDepartments, setSelectedDepartments] = useState<number[]>([])
+  const [submitting, setSubmitting] = useState(false)
 
-  const {
-    academicYears,
-    availableClasses,
-    loadingClasses,
-    loadAvailableClasses,
-  } = useTarifForm()
+  const studyLevels = [
+    { value: 'L1', label: 'Licence 1' },
+    { value: 'L2', label: 'Licence 2' },
+    { value: 'L3', label: 'Licence 3' },
+    { value: 'M1', label: 'Master 1' },
+    { value: 'M2', label: 'Master 2' },
+    { value: 'PREPA1', label: 'Prépa 1' },
+    { value: 'PREPA2', label: 'Prépa 2' },
+    { value: 'ING1', label: 'Ingénieur 1' },
+    { value: 'ING2', label: 'Ingénieur 2' },
+    { value: 'ING3', label: 'Ingénieur 3' },
+    { value: 'ING4', label: 'Ingénieur 4' },
+    { value: 'ING5', label: 'Ingénieur 5' },
+  ]
+
+  useEffect(() => {
+    loadData()
+    loadAcademicYears()
+    loadDepartments()
+  }, [])
+
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      const response = await academicLevelFeeService.getAll()
+      setTarifs(response.data || [])
+    } catch (err: any) {
+      setError(err.message || 'Erreur lors du chargement')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadAcademicYears = async () => {
+    try {
+      const response = await inscriptionService.academicYears()
+      setAcademicYears(response || [])
+    } catch (err) {
+      console.error('Erreur chargement années:', err)
+    }
+  }
+
+  const loadDepartments = async () => {
+    try {
+      const response = await inscriptionService.getFilieres()
+      setDepartments(response || [])
+    } catch (err) {
+      console.error('Erreur chargement départements:', err)
+    }
+  }
+
+  const getStudyLevels = () => {
+    return [
+      { value: '1', label: '1ère année' },
+      { value: '2', label: '2ème année' },
+      { value: '3', label: '3ème année' },
+      { value: 'PREPA', label: 'Classes Préparatoires' },
+    ]
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     try {
+      setSubmitting(true)
       if (editingTarif) {
-        await updateTarif(editingTarif.id, formData)
+        await academicLevelFeeService.update(editingTarif.uuid, formData)
       } else {
-        await createTarif(formData)
+        if (selectedDepartments.length > 0) {
+          await academicLevelFeeService.createBulk({
+            ...formData,
+            department_ids: selectedDepartments
+          })
+        } else {
+          await academicLevelFeeService.create(formData)
+        }
       }
       
       setShowModal(false)
       resetForm()
-    } catch (error) {
-      console.error('Erreur lors de la sauvegarde:', error)
+      loadData()
+      
+      Swal.fire({
+        icon: 'success',
+        title: 'Succès',
+        text: editingTarif ? 'Tarif mis à jour' : 'Tarif créé',
+        timer: 1500,
+        showConfirmButton: false,
+      })
+    } catch (error: any) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Erreur',
+        text: error.message || 'Erreur lors de la sauvegarde',
+      })
+    } finally {
+      setSubmitting(false)
     }
   }
 
   const resetForm = () => {
     setFormData({
-      type: 'inscription',
-      libelle: '',
-      amount: '',
-      academic_year_id: '',
+      academic_year_id: 0,
+      department_id: 0,
+      study_level: '',
+      registration_fee: 0,
+      uemoa_training_fee: 0,
+      non_uemoa_training_fee: 0,
+      exempted_training_fee: 0,
       is_active: true,
-      penalty_amount: '',
-      penalty_type: 'fixed',
-      penalty_active: false,
-      class_groups: [],
     })
+    setSelectedDepartments([])
     setEditingTarif(null)
   }
 
-  const handleAcademicYearChange = async (academicYearId: string) => {
-    setFormData({ ...formData, academic_year_id: academicYearId, class_groups: [] })
-    
-    if (academicYearId) {
-      const classes = await loadAvailableClasses(parseInt(academicYearId))
-      // Cocher toutes les classes par défaut
-      setFormData(prev => ({
-        ...prev,
-        class_groups: classes.map((c: any) => ({
-          academic_year_id: c.academic_year_id,
-          department_id: c.department_id,
-          study_level: c.study_level,
-        }))
-      }))
-    }
-  }
-
-
-
-  const toggleClassSelection = (classItem: any) => {
-    const key = `${classItem.academic_year_id}-${classItem.department_id}-${classItem.study_level}`
-    const exists = formData.class_groups.some(
-      c => `${c.academic_year_id}-${c.department_id}-${c.study_level}` === key
-    )
-
-    if (exists) {
-      setFormData({
-        ...formData,
-        class_groups: formData.class_groups.filter(
-          c => `${c.academic_year_id}-${c.department_id}-${c.study_level}` !== key
-        )
-      })
-    } else {
-      setFormData({
-        ...formData,
-        class_groups: [...formData.class_groups, {
-          academic_year_id: classItem.academic_year_id,
-          department_id: classItem.department_id,
-          study_level: classItem.study_level,
-        }]
-      })
-    }
-  }
-
-  const isClassSelected = (classItem: any) => {
-    const key = `${classItem.academic_year_id}-${classItem.department_id}-${classItem.study_level}`
-    return formData.class_groups.some(
-      c => `${c.academic_year_id}-${c.department_id}-${c.study_level}` === key
-    )
-  }
-
-  const handleEdit = async (tarif: any) => {
+  const handleEdit = (tarif: AcademicLevelFee) => {
     setEditingTarif(tarif)
-    
-    // Charger les détails complets du tarif avec ses classes
-    try {
-      const response = await financeService.getTarifById(tarif.id)
-      const tarifData = response.data
-      
-      // Charger les classes disponibles pour cette année AVANT de définir formData
-      if (tarifData.academic_year_id) {
-        await loadAvailableClasses(tarifData.academic_year_id)
-      }
-      
-      // Maintenant définir formData avec les class_groups du tarif
-      setFormData({
-        type: tarifData.type || 'inscription',
-        libelle: tarifData.libelle || '',
-        amount: tarifData.amount?.toString() || '',
-        academic_year_id: tarifData.academic_year_id?.toString() || '',
-        is_active: tarifData.is_active ?? true,
-        penalty_amount: tarifData.penalty_amount?.toString() || '',
-        penalty_type: tarifData.penalty_type || 'fixed',
-        penalty_active: tarifData.penalty_active ?? false,
-        class_groups: tarifData.class_groups || [],
-      });
-      
-      setShowModal(true);
-    } catch (error) {
-      console.error('Erreur chargement tarif:', error);
-    }
-  };
+    setFormData({
+      academic_year_id: tarif.academic_year_id,
+      department_id: tarif.department_id,
+      study_level: tarif.study_level || '',
+      registration_fee: tarif.registration_fee,
+      uemoa_training_fee: tarif.uemoa_training_fee,
+      non_uemoa_training_fee: tarif.non_uemoa_training_fee,
+      exempted_training_fee: tarif.exempted_training_fee,
+      is_active: tarif.is_active,
+    })
+    setSelectedDepartments([])
+    setShowModal(true)
+  }
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (uuid: string) => {
     const result = await Swal.fire({
       title: 'Êtes-vous sûr ?',
       text: 'Cette action est irréversible',
@@ -186,18 +192,18 @@ const Tarifs = () => {
       cancelButtonColor: '#3085d6',
       confirmButtonText: 'Oui, supprimer',
       cancelButtonText: 'Annuler'
-    });
+    })
 
     if (result.isConfirmed) {
       try {
-        await deleteTarif(id);
-        Swal.fire('Supprimé !', 'Le tarif a été supprimé.', 'success');
-      } catch (error) {
-        console.error('Erreur lors de la suppression:', error);
-        Swal.fire('Erreur', 'Impossible de supprimer le tarif', 'error');
+        await academicLevelFeeService.delete(uuid)
+        loadData()
+        Swal.fire('Supprimé !', 'Le tarif a été supprimé.', 'success')
+      } catch (error: any) {
+        Swal.fire('Erreur', error.message || 'Impossible de supprimer le tarif', 'error')
       }
     }
-  };
+  }
 
   if (loading) {
     return <LoadingSpinner fullPage message="Chargement des tarifs..." />
@@ -207,7 +213,7 @@ const Tarifs = () => {
     <>
       <CCard>
         <CCardHeader className="d-flex justify-content-between align-items-center">
-          <h5 className="mb-0">Gestion des Tarifs</h5>
+          <h5 className="mb-0">Gestion des Tarifs par Niveau</h5>
           <CButton
             color="primary"
             onClick={() => {
@@ -229,25 +235,27 @@ const Tarifs = () => {
           <CTable hover responsive>
             <CTableHead>
               <CTableRow>
-                <CTableHeaderCell>Type</CTableHeaderCell>
-                <CTableHeaderCell>Libellé</CTableHeaderCell>
-                <CTableHeaderCell>Montant</CTableHeaderCell>
-                <CTableHeaderCell>Classes</CTableHeaderCell>
+                <CTableHeaderCell>Année</CTableHeaderCell>
+                <CTableHeaderCell>Département</CTableHeaderCell>
+                <CTableHeaderCell>Niveau</CTableHeaderCell>
+                <CTableHeaderCell>Frais inscription</CTableHeaderCell>
+                <CTableHeaderCell>Frais UEMOA</CTableHeaderCell>
+                <CTableHeaderCell>Frais Non-UEMOA</CTableHeaderCell>
                 <CTableHeaderCell>Statut</CTableHeaderCell>
                 <CTableHeaderCell>Actions</CTableHeaderCell>
               </CTableRow>
             </CTableHead>
             <CTableBody>
-              {Array.isArray(tarifs) && tarifs.length > 0 ? tarifs.map((tarif: any) => (
-                <CTableRow key={tarif.id}>
+              {Array.isArray(tarifs) && tarifs.length > 0 ? tarifs.map((tarif: AcademicLevelFee) => (
+                <CTableRow key={tarif.uuid}>
+                  <CTableDataCell>{tarif.academic_year?.academic_year || tarif.academic_year_id}</CTableDataCell>
+                  <CTableDataCell>{tarif.department?.name || tarif.department_id}</CTableDataCell>
                   <CTableDataCell>
-                    <CBadge color="info">{tarif.type}</CBadge>
+                    <CBadge color="info">{tarif.study_level}</CBadge>
                   </CTableDataCell>
-                  <CTableDataCell>{tarif.libelle}</CTableDataCell>
-                  <CTableDataCell>{tarif.amount?.toLocaleString()} FCFA</CTableDataCell>
-                  <CTableDataCell>
-                    <small className="text-muted">{tarif.classes_list || '-'}</small>
-                  </CTableDataCell>
+                  <CTableDataCell>{tarif.registration_fee?.toLocaleString()} FCFA</CTableDataCell>
+                  <CTableDataCell>{tarif.uemoa_training_fee?.toLocaleString()} FCFA</CTableDataCell>
+                  <CTableDataCell>{tarif.non_uemoa_training_fee?.toLocaleString()} FCFA</CTableDataCell>
                   <CTableDataCell>
                     <CBadge color={tarif.is_active ? 'success' : 'secondary'}>
                       {tarif.is_active ? 'Actif' : 'Inactif'}
@@ -267,7 +275,7 @@ const Tarifs = () => {
                       color="danger"
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleDelete(tarif.id)}
+                      onClick={() => handleDelete(tarif.uuid)}
                     >
                       <CIcon icon={cilTrash} />
                     </CButton>
@@ -275,7 +283,7 @@ const Tarifs = () => {
                 </CTableRow>
               )) : (
                 <CTableRow>
-                  <CTableDataCell colSpan={6} className="text-center text-muted py-4">
+                  <CTableDataCell colSpan={8} className="text-center text-muted py-4">
                     Aucun tarif défini
                   </CTableDataCell>
                 </CTableRow>
@@ -298,10 +306,10 @@ const Tarifs = () => {
                 <CFormSelect
                   label="Année académique"
                   value={formData.academic_year_id}
-                  onChange={(e) => handleAcademicYearChange(e.target.value)}
+                  onChange={(e) => setFormData({ ...formData, academic_year_id: parseInt(e.target.value) })}
                   required
                 >
-                  <option value="">Sélectionner une année</option>
+                  <option value={0}>Sélectionner une année</option>
                   {academicYears.map((year: any) => (
                     <option key={year.id} value={year.id}>{year.libelle}</option>
                   ))}
@@ -309,34 +317,56 @@ const Tarifs = () => {
               </div>
               <div className="col-md-6 mb-3">
                 <CFormSelect
-                  label="Type de tarif"
-                  value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  required
+                  label="Niveau d'études"
+                  value={formData.study_level}
+                  onChange={(e) => setFormData({ ...formData, study_level: e.target.value })}
+                  required={formData.study_level !== 'PREPA'}
                 >
-                  <option value="inscription">Frais d'inscription</option>
-                  <option value="formation">Frais de formation</option>
-                  <option value="penalty">Pénalité de retard</option>
+                  <option value="">Sélectionner un niveau</option>
+                  {getStudyLevels().map((level) => (
+                    <option key={level.value} value={level.value}>{level.label}</option>
+                  ))}
                 </CFormSelect>
+                {formData.study_level === 'PREPA' && (
+                  <small className="text-info">Les classes préparatoires n'ont pas de sous-niveau</small>
+                )}
               </div>
               <div className="col-md-6 mb-3">
                 <CFormInput
-                  label="Libellé"
-                  value={formData.libelle}
-                  onChange={(e) => setFormData({ ...formData, libelle: e.target.value })}
+                  type="number"
+                  label="Frais d'inscription (FCFA)"
+                  value={formData.registration_fee}
+                  onChange={(e) => setFormData({ ...formData, registration_fee: parseFloat(e.target.value) || 0 })}
                   required
                 />
               </div>
               <div className="col-md-6 mb-3">
                 <CFormInput
                   type="number"
-                  label="Montant (FCFA)"
-                  value={formData.amount}
-                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                  label="Frais formation UEMOA (FCFA)"
+                  value={formData.uemoa_training_fee}
+                  onChange={(e) => setFormData({ ...formData, uemoa_training_fee: parseFloat(e.target.value) || 0 })}
                   required
                 />
               </div>
-              <div className="col-md-12 mb-3">
+              <div className="col-md-6 mb-3">
+                <CFormInput
+                  type="number"
+                  label="Frais formation Non-UEMOA (FCFA)"
+                  value={formData.non_uemoa_training_fee}
+                  onChange={(e) => setFormData({ ...formData, non_uemoa_training_fee: parseFloat(e.target.value) || 0 })}
+                  required
+                />
+              </div>
+              <div className="col-md-6 mb-3">
+                <CFormInput
+                  type="number"
+                  label="Frais formation Exonéré (FCFA)"
+                  value={formData.exempted_training_fee}
+                  onChange={(e) => setFormData({ ...formData, exempted_training_fee: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+              <div className="col-md-6 mb-3">
                 <CFormCheck
                   id="is_active"
                   label="Tarif actif"
@@ -344,72 +374,57 @@ const Tarifs = () => {
                   onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                 />
               </div>
-              
-              {formData.academic_year_id && (
-                <div className="col-12 mb-3">
-                  <label className="form-label fw-bold">Classes concernées</label>
-                  {loadingClasses ? (
-                    <div className="text-center py-3">
-                      <div className="spinner-border spinner-border-sm" role="status">
-                        <span className="visually-hidden">Chargement...</span>
-                      </div>
+              <div className="col-12 mb-3">
+                {editingTarif ? (
+                  <CFormSelect
+                    label="Département"
+                    value={formData.department_id}
+                    onChange={(e) => {
+                      const deptId = parseInt(e.target.value)
+                      setFormData({ ...formData, department_id: deptId, study_level: '' })
+                    }}
+                    required
+                  >
+                    <option value={0}>Sélectionner un département</option>
+                    {departments.map((dept: any) => (
+                      <option key={dept.id} value={dept.id}>{dept.title}</option>
+                    ))}
+                  </CFormSelect>
+                ) : (
+                  <div>
+                    <label className="form-label">Départements *</label>
+                    <div className="row">
+                      {departments.map((dept: any) => (
+                        <div key={dept.id} className="col-md-3 mb-2">
+                          <CFormCheck
+                            id={`dept-${dept.id}`}
+                            label={dept.title}
+                            checked={selectedDepartments.includes(dept.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                const newSelection = [...selectedDepartments, dept.id]
+                                setSelectedDepartments(newSelection)
+                                if (newSelection.length === 1) {
+                                  setFormData({ ...formData, study_level: '' })
+                                }
+                              } else {
+                                const newSelection = selectedDepartments.filter(id => id !== dept.id)
+                                setSelectedDepartments(newSelection)
+                                if (newSelection.length === 0) {
+                                  setFormData({ ...formData, study_level: '' })
+                                }
+                              }
+                            }}
+                          />
+                        </div>
+                      ))}
                     </div>
-                  ) : availableClasses.length > 0 ? (
-                    <div className="border rounded p-3" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                      <div className="row">
-                        {availableClasses.map((classItem: any, idx: number) => (
-                          <div key={idx} className="col-md-6 mb-2">
-                            <CFormCheck
-                              id={`class-${idx}`}
-                              label={classItem.label}
-                              checked={isClassSelected(classItem)}
-                              onChange={() => toggleClassSelection(classItem)}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="alert alert-info mb-0">
-                      Aucune classe disponible pour cette année
-                    </div>
-                  )}
-                  {formData.class_groups.length === 0 && formData.academic_year_id && (
-                    <small className="text-danger">Veuillez sélectionner au moins une classe</small>
-                  )}
-                </div>
-              )}
-              
-              {formData.type === 'penalty' && (
-                <>
-                  <div className="col-md-6 mb-3">
-                    <CFormInput
-                      type="number"
-                      label="Montant de pénalité"
-                      value={formData.penalty_amount}
-                      onChange={(e) => setFormData({ ...formData, penalty_amount: e.target.value })}
-                    />
+                    {selectedDepartments.length === 0 && (
+                      <small className="text-danger">Veuillez sélectionner au moins un département</small>
+                    )}
                   </div>
-                  <div className="col-md-6 mb-3">
-                    <CFormSelect
-                      label="Type de pénalité"
-                      value={formData.penalty_type}
-                      onChange={(e) => setFormData({ ...formData, penalty_type: e.target.value })}
-                    >
-                      <option value="fixed">Montant fixe</option>
-                      <option value="percentage">Pourcentage</option>
-                    </CFormSelect>
-                  </div>
-                  <div className="col-md-12 mb-3">
-                    <CFormCheck
-                      id="penalty_active"
-                      label="Activer les pénalités de retard"
-                      checked={formData.penalty_active}
-                      onChange={(e) => setFormData({ ...formData, penalty_active: e.target.checked })}
-                    />
-                  </div>
-                </>
-              )}
+                )}
+              </div>
             </div>
           </CModalBody>
           <CModalFooter>
@@ -419,9 +434,9 @@ const Tarifs = () => {
             <CButton 
               color="primary" 
               type="submit"
-              disabled={formData.class_groups.length === 0}
+              disabled={(!editingTarif && selectedDepartments.length === 0) || submitting}
             >
-              {editingTarif ? 'Modifier' : 'Créer'}
+              {submitting ? 'Opération en cours...' : (editingTarif ? 'Modifier' : 'Créer')}
             </CButton>
           </CModalFooter>
         </CForm>

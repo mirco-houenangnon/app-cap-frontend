@@ -107,11 +107,14 @@ const useAnneeAcademiquesData = () => {
       const endTimeObj = new Date(`1970-01-01T${endTime}`);
       
       const response = await InscriptionService.addPeriod(Number(yearId), type, startDateObj, startTimeObj, endDateObj, endTimeObj, selectedFilieres);
-      if (response.success) {
+      
+      // Vérifier si la réponse existe et a un statut success
+      if (response && (response.success === true || response.success === undefined)) {
         return { success: true };
       } else {
-        setError(response.error || 'Échec de l\'ajout de la période.');
-        return { success: false, error: response.error };
+        const errorMsg = response?.error || response?.message || 'Échec de l\'ajout de la période.';
+        setError(errorMsg);
+        return { success: false, error: errorMsg };
       }
     } catch (error: any) {
       console.error('Erreur lors de l\'ajout de la période:', error);

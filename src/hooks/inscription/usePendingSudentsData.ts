@@ -174,7 +174,22 @@ const usePendingStudentsData = () => {
   // Fonction pour exporter les données
   const exportData = async (format: any): Promise<FunctionResult> => {
     try {
-      const endpoint = `/inscription/export/${format}?year=${selectedYear}&filiere=${selectedFiliere}&cohort=${selectedCohort}`;
+      let endpoint = '';
+      
+      if (format === 'emails') {
+        // Pour l'export des emails, on utilise un endpoint spécifique
+        endpoint = `/inscription/export/emails?year=${selectedYear}`;
+        if (selectedFiliere !== 'all') {
+          endpoint += `&filiere=${selectedFiliere}`;
+        }
+        if (selectedCohort !== 'all') {
+          endpoint += `&cohort=${selectedCohort}`;
+        }
+      } else {
+        // Pour les autres formats, on garde l'ancien comportement
+        endpoint = `/inscription/export/${format}?year=${selectedYear}&filiere=${selectedFiliere}&cohort=${selectedCohort}`;
+      }
+      
       const response = await InscriptionService.exportData(endpoint);
       if (response.success) {
         return { success: true, url: response.url, filename: response.filename };
@@ -222,6 +237,34 @@ const usePendingStudentsData = () => {
     }
   };
 
+  // Fonction pour renommer une pièce
+  const renamePiece = async (studentId: number, pieceKey: string, customName: string): Promise<FunctionResult> => {
+    try {
+      await InscriptionService.renamePiece(studentId, pieceKey, customName);
+      setPendingStudents(prev =>
+        prev.map(student =>
+          student.id === studentId
+            ? {
+                ...student,
+                documents: {
+                  ...student.documents,
+                  [pieceKey]: {
+                    ...(typeof student.documents?.[pieceKey] === 'object' ? student.documents[pieceKey] : { url: student.documents?.[pieceKey] }),
+                    custom_name: customName
+                  }
+                }
+              }
+            : student
+        )
+      );
+      return { success: true };
+    } catch (error: any) {
+      console.error('Erreur lors du renommage de la pièce:', error);
+      setError('Impossible de renommer la pièce.');
+      return { success: false, error: error?.message || String(error) };
+    }
+  };
+
   return {
     academicYears,
     pendingStudents,
@@ -250,6 +293,7 @@ const usePendingStudentsData = () => {
     exportData,
     updateStudentStatus,
     updateStudentLevel,
+    renamePiece,
   };
 };
 

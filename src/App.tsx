@@ -126,7 +126,7 @@ const App = () => {
                   <DefaultLayout>
                     <SoutenanceRoutes />
                   </DefaultLayout>
-                </ProtectedRoute>
+               </ProtectedRoute>
               }
             />
             <Route
