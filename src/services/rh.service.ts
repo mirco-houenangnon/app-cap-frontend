@@ -158,17 +158,54 @@ class RhService {
   }
 
   createImportantInformation = async (data: any): Promise<any> => {
+    // Si data contient un fichier, on envoie en FormData
+    if (data.file) {
+      const formData = new FormData()
+      Object.entries(data).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          formData.append(key, value as string | Blob)
+        }
+      })
+      const response = await HttpService.post<ApiResponse<any>>('rh/important-informations', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      return response.data!
+    }
+    
+    // Sinon, on envoie en JSON classique
     const response = await HttpService.post<ApiResponse<any>>('rh/important-informations', data)
     return response.data!
   }
 
   updateImportantInformation = async (id: number, data: any): Promise<any> => {
+    // Si data contient un fichier, on envoie en FormData
+    if (data.file) {
+      const formData = new FormData()
+      Object.entries(data).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          formData.append(key, value as string | Blob)
+        }
+      })
+      // Laravel ne supporte pas PUT avec FormData, on utilise POST avec _method
+      formData.append('_method', 'PUT')
+      const response = await HttpService.post<ApiResponse<any>>(`rh/important-informations/${id}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      return response.data!
+    }
+    
+    // Sinon, on envoie en JSON classique
     const response = await HttpService.put<ApiResponse<any>>(`rh/important-informations/${id}`, data)
     return response.data!
   }
 
   deleteImportantInformation = async (id: number): Promise<void> => {
     await HttpService.delete(`rh/important-informations/${id}`)
+  }
+
+  // Télécharger un fichier PDF en blob
+  downloadImportantInformationFile = async (fileId: number): Promise<{success: true, url: string, filename?: string}> => {
+    return await HttpService.downloadFile(`rh/files/${fileId}`)
   }
 }
 

@@ -17,6 +17,7 @@ const InformationsManagement: React.FC = () => {
     color: 'primary',
     link: '',
     file_id: null as number | null,
+    file: null as File | null,
     is_active: true,
     order: 0,
   })
@@ -80,6 +81,7 @@ const InformationsManagement: React.FC = () => {
       color: 'primary',
       link: '',
       file_id: null,
+      file: null,
       is_active: true,
       order: 0,
     })
@@ -95,6 +97,7 @@ const InformationsManagement: React.FC = () => {
       color: info.color,
       link: info.link || '',
       file_id: info.file_id || null,
+      file: null,
       is_active: info.is_active ?? true,
       order: info.order ?? 0,
     })
@@ -210,16 +213,48 @@ const InformationsManagement: React.FC = () => {
             </CRow>
             <CRow className="mb-3">
               <CCol>
-                <CFormLabel>Document PDF (optionnel)</CFormLabel>
+                <CFormLabel>Document PDF</CFormLabel>
                 <small className="text-muted d-block mb-2">
-                  Sélectionnez un document existant ou créez-en un dans l'onglet "Documents Utiles"
+                  Vous pouvez soit uploader un nouveau fichier PDF, soit sélectionner un document existant
                 </small>
-                <CFormSelect value={formData.file_id || ''} onChange={e => setFormData({...formData, file_id: e.target.value ? parseInt(e.target.value) : null})}>
-                  <option value="">Aucun document</option>
-                  {documents.map((doc: any) => (
-                    <option key={doc.id} value={doc.id}>{doc.titre}</option>
-                  ))}
-                </CFormSelect>
+                
+                <div className="mb-3">
+                  <CFormLabel className="fw-semibold">Option 1: Uploader un nouveau PDF</CFormLabel>
+                  <CFormInput 
+                    type="file" 
+                    accept=".pdf"
+                    onChange={e => {
+                      const file = (e.target as HTMLInputElement).files?.[0] || null
+                      setFormData({...formData, file, file_id: null})
+                    }}
+                  />
+                  {formData.file && (
+                    <small className="text-success d-block mt-1">
+                      Fichier sélectionné: {formData.file.name}
+                    </small>
+                  )}
+                </div>
+
+                <div className="text-center my-2 text-muted">OU</div>
+
+                <div>
+                  <CFormLabel className="fw-semibold">Option 2: Sélectionner un document existant</CFormLabel>
+                  <CFormSelect 
+                    value={formData.file_id || ''} 
+                    onChange={e => setFormData({...formData, file_id: e.target.value ? parseInt(e.target.value) : null, file: null})}
+                    disabled={!!formData.file}
+                  >
+                    <option value="">Aucun document</option>
+                    {documents.map((doc: any) => (
+                      <option key={doc.id} value={doc.id}>{doc.titre}</option>
+                    ))}
+                  </CFormSelect>
+                  {formData.file && (
+                    <small className="text-muted d-block mt-1">
+                      Désactivé car un nouveau fichier est sélectionné
+                    </small>
+                  )}
+                </div>
               </CCol>
             </CRow>
             <CRow className="mb-3">

@@ -132,13 +132,8 @@ const PendingStudents: React.FC = () => {
       setEditedData((prev) =>
         prev.map((student) => {
           if (student.id === studentId) {
-            const newComment = value === 'Favorable' ? 'Favorable' : 'Défavorable'
             const updatedStudent = { ...student, [type]: value }
-            if (type === 'opinionCuca') {
-              updatedStudent.commentaireCuca = newComment
-            } else if (type === 'opinionCuo') {
-              updatedStudent.commentaireCuo = newComment
-            }
+            // Ne pas écraser le commentaire existant, juste mettre à jour l'opinion
             return updatedStudent
           }
           return student

@@ -198,11 +198,11 @@ const StudentsList = () => {
 
   const handleExport = useCallback(
     async (type: 'fiche-presence' | 'fiche-emargement') => {
-      if (selectedYear === 'all' || selectedFiliere === 'all' || selectedNiveau === 'all' || selectedCohort === 'all') {
+      if (selectedYear === 'all' || selectedFiliere === 'all' || selectedNiveau === 'all') {
         Swal.fire({
           icon: 'warning',
           title: 'Sélection requise',
-          text: "Veuillez sélectionner une année académique, une filière, un niveau et une cohorte avant d'exporter.",
+          text: "Veuillez sélectionner une année académique, une filière et un niveau avant d'exporter.",
         })
         return
       }
@@ -216,10 +216,14 @@ const StudentsList = () => {
           throw new Error('Impossible de trouver les identifiants nécessaires')
         }
 
+        // Déterminer la cohorte à utiliser pour l'export
+        const cohortForExport = selectedCohort === 'all' ? 'all' : selectedCohort
+
         const groupsResponse = await InscriptionService.getClassGroups(
           academicYearId,
           departmentId,
-          selectedNiveau
+          selectedNiveau,
+          cohortForExport !== 'all' ? cohortForExport : undefined
         )
 
         let selectedGroupe: string | undefined = undefined
@@ -252,7 +256,7 @@ const StudentsList = () => {
           selectedYear,
           selectedFiliere,
           selectedNiveau,
-          selectedCohort,
+          cohortForExport,
           selectedGroupe
         )
 
@@ -269,7 +273,8 @@ const StudentsList = () => {
 
         const link = document.createElement('a')
         link.href = blobUrl
-        link.download = `${type}-${yearLabel}-${filiereLabel}-Niveau${selectedNiveau}${
+        const cohortLabel = cohortForExport === 'all' ? 'ToutesCohortes' : `Cohorte${cohortForExport}`
+        link.download = `${type}-${yearLabel}-${filiereLabel}-Niveau${selectedNiveau}-${cohortLabel}${
           selectedGroupe ? `-Groupe${selectedGroupe}` : ''
         }.pdf`
         link.click()
