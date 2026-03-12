@@ -42,8 +42,8 @@ const useAttestationData = (type: 'success' | 'preparatory' = 'success') => {
           filename = 'attestation-licence.pdf'
           break
         default:
-          url = await attestationService.generateSuccess(studentPendingStudentId)
-          filename = 'attestation-succes.pdf'
+          url = await attestationService.generatePassage(studentPendingStudentId)
+          filename = 'attestation-passage.pdf'
       }
       
       const link = document.createElement('a')

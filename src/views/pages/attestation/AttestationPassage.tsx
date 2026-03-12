@@ -28,7 +28,7 @@ import useModal from '@/hooks/common/useModal'
 import type { EligibleStudent } from '@/types/attestation.types'
 import attestationService from '@/services/attestation.service'
 
-const AttestationSuccess = () => {
+const AttestationPassage = () => {
   const { students, loading, loadStudents, generateAttestation } = useAttestationData('success')
   const { academicYears } = useAnneeAcademiqueData()
   const [generating, setGenerating] = useState<number | null>(null)
@@ -90,7 +90,7 @@ const AttestationSuccess = () => {
     previewModal.open()
     try {
       const [attestationUrl, birthCertResponse] = await Promise.all([
-        attestationService.generateSuccess(student.student_pending_student_id),
+        attestationService.generatePassage(student.student_pending_student_id),
         attestationService.getBirthCertificate(student.student_pending_student_id).catch(() => null)
       ])
       setAttestationPreviewUrl(attestationUrl)
@@ -112,7 +112,7 @@ const AttestationSuccess = () => {
   const handleUpdateNames = async (lastName: string, firstNames: string) => {
     if (!previewStudent) return
     await attestationService.updateStudentNames(previewStudent.student_pending_student_id, lastName, firstNames)
-    const url = await attestationService.generateSuccess(previewStudent.student_pending_student_id)
+    const url = await attestationService.generatePassage(previewStudent.student_pending_student_id)
     setAttestationPreviewUrl(url)
   }
 
@@ -156,7 +156,7 @@ const AttestationSuccess = () => {
       <CCol xs={12}>
         <CCard className="mb-4">
           <CCardHeader>
-            <strong>Attestation de Succès</strong>
+            <strong>Attestation de Passage</strong>
           </CCardHeader>
           <CCardBody>
             {students.length > 0 && (
@@ -301,4 +301,4 @@ const AttestationSuccess = () => {
   )
 }
 
-export default AttestationSuccess
+export default AttestationPassage

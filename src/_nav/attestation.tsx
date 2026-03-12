@@ -14,8 +14,8 @@ const attestationNavigation = [
   },
   {
     component: CNavItem,
-    name: 'Attestation de succès',
-    to: '/attestations/success',
+    name: 'Attestation de passage',
+    to: '/attestations/passage',
     icon: <CIcon icon={cilCheckAlt} customClassName="nav-icon" />,
   },
   {

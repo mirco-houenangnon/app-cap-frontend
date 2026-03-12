@@ -79,6 +79,18 @@ const applications = [
     image: getAssetUrl('images/presence.png'),
     url: '/presence',
   },
+  {
+    title: 'CAP Demandes d\'Attestations',
+    description: '',
+    image: getAssetUrl('images/attestations.jpeg'),
+    url: '/demandes-attestations',
+  },
+  {
+    title: 'CAP Demandes de bulletin',
+    description: '',
+    image: getAssetUrl('images/bulletins.jpeg'),
+    url: '/demandes-bulletin',
+  },
 ];
 
 const Portail = () => {

@@ -23,7 +23,8 @@ interface AcademicYearFormProps {
 /**
  * AcademicYearForm - Formulaire de création d'année académique
  */
-const AcademicYearForm: React.FC<AcademicYearFormProps> = ({
+const AcademicYearForm: React.FC<AcademicYearFormProps> = (
+{
   visible,
   onClose,
   onSubmit,
@@ -38,7 +39,9 @@ const AcademicYearForm: React.FC<AcademicYearFormProps> = ({
   setSubmissionEnd,
   setIncludeSubmissionPeriod,
   loading = false,
-}) => {
+}
+
+) => {
   return (
     <FormModal
       visible={visible}

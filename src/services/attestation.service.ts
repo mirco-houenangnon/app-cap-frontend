@@ -4,7 +4,7 @@ const BASE_URL = 'attestations'
 
 class AttestationService {
   /**
-   * Récupère les étudiants éligibles pour attestation de succès
+   * Récupère les étudiants éligibles pour passage
    */
   getEligibleForSuccess = async (filters: {
     academic_year_id?: number
@@ -20,7 +20,7 @@ class AttestationService {
     })
     
     const queryString = params.toString()
-    const url = queryString ? `${BASE_URL}/eligible/success?${queryString}` : `${BASE_URL}/eligible/success`
+    const url = queryString ? `${BASE_URL}/eligible/passage?${queryString}` : `${BASE_URL}/eligible/passage`
     return await HttpService.get(url)
   }
 
@@ -45,10 +45,10 @@ class AttestationService {
   }
 
   /**
-   * Génère une attestation de succès
+   * Génère une attestation de passage
    */
-  generateSuccess = async (studentPendingStudentId: number) => {
-    const result = await HttpService.downloadFile(`${BASE_URL}/generate/success`, {
+  generatePassage = async (studentPendingStudentId: number) => {
+    const result = await HttpService.downloadFile(`${BASE_URL}/generate/passage`, {
       method: 'POST',
       body: JSON.stringify({ student_pending_student_id: studentPendingStudentId })
     })
