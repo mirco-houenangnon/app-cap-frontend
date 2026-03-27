@@ -18,7 +18,7 @@ class AttestationService {
         params.append(key, value.toString())
       }
     })
-    
+
     const queryString = params.toString()
     const url = queryString ? `${BASE_URL}/eligible/passage?${queryString}` : `${BASE_URL}/eligible/passage`
     return await HttpService.get(url)
@@ -38,9 +38,50 @@ class AttestationService {
         params.append(key, value.toString())
       }
     })
-    
+
     const queryString = params.toString()
     const url = queryString ? `${BASE_URL}/eligible/preparatory?${queryString}` : `${BASE_URL}/eligible/preparatory`
+    return await HttpService.get(url)
+  }
+
+  /**
+   * Récupère les étudiants éligibles à l'attestation définitive (fin de cycle)
+   */
+  getEligibleForDefinitive = async (filters: {
+    academic_year_id?: number
+    department_id?: number
+    cohort?: string
+    search?: string
+  }) => {
+    const params = new URLSearchParams()
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '' && value !== 'all') {
+        params.append(key, value.toString())
+      }
+    })
+
+    const queryString = params.toString()
+    const url = queryString ? `${BASE_URL}/eligible/definitive?${queryString}` : `${BASE_URL}/eligible/definitive`
+    return await HttpService.get(url)
+  }
+
+  /**
+   * Récupère les étudiants éligibles à l'attestation d'inscription
+   */
+  getEligibleForInscription = async (filters: {
+    academic_year_id?: number
+    department_id?: number
+    search?: string
+  }) => {
+    const params = new URLSearchParams()
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '' && value !== 'all') {
+        params.append(key, value.toString())
+      }
+    })
+
+    const queryString = params.toString()
+    const url = queryString ? `${BASE_URL}/eligible/inscription?${queryString}` : `${BASE_URL}/eligible/inscription`
     return await HttpService.get(url)
   }
 
@@ -67,10 +108,54 @@ class AttestationService {
   }
 
   /**
+   * Génère une attestation définitive (fin de cycle)
+   */
+  generateDefinitive = async (studentPendingStudentId: number) => {
+    const result = await HttpService.downloadFile(`${BASE_URL}/generate/definitive`, {
+      method: 'POST',
+      body: JSON.stringify({ student_pending_student_id: studentPendingStudentId })
+    })
+    return result.url
+  }
+
+  /**
+   * Génère une attestation d'inscription
+   */
+  generateInscription = async (studentPendingStudentId: number) => {
+    const result = await HttpService.downloadFile(`${BASE_URL}/generate/inscription`, {
+      method: 'POST',
+      body: JSON.stringify({ student_pending_student_id: studentPendingStudentId })
+    })
+    return result.url
+  }
+
+  /**
    * Génère plusieurs certificats de classes préparatoires en un seul PDF
    */
   generateMultiplePreparatory = async (studentPendingStudentIds: number[]) => {
     const result = await HttpService.downloadFile(`${BASE_URL}/generate/preparatory/multiple`, {
+      method: 'POST',
+      body: JSON.stringify({ student_pending_student_ids: studentPendingStudentIds })
+    })
+    return result.url
+  }
+
+  /**
+   * Génère plusieurs attestations définitives en un seul PDF
+   */
+  generateMultipleDefinitive = async (studentPendingStudentIds: number[]) => {
+    const result = await HttpService.downloadFile(`${BASE_URL}/generate/definitive/multiple`, {
+      method: 'POST',
+      body: JSON.stringify({ student_pending_student_ids: studentPendingStudentIds })
+    })
+    return result.url
+  }
+
+  /**
+   * Génère plusieurs attestations d'inscription en un seul PDF
+   */
+  generateMultipleInscription = async (studentPendingStudentIds: number[]) => {
+    const result = await HttpService.downloadFile(`${BASE_URL}/generate/inscription/multiple`, {
       method: 'POST',
       body: JSON.stringify({ student_pending_student_ids: studentPendingStudentIds })
     })

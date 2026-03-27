@@ -80,16 +80,10 @@ const applications = [
     url: '/presence',
   },
   {
-    title: 'CAP Demandes d\'Attestations',
+    title: 'CAP Demandes',
     description: '',
     image: getAssetUrl('images/attestations.jpeg'),
-    url: '/demandes-attestations',
-  },
-  {
-    title: 'CAP Demandes de bulletin',
-    description: '',
-    image: getAssetUrl('images/bulletins.jpeg'),
-    url: '/demandes-bulletin',
+    url: '/demandes',
   },
 ];
 

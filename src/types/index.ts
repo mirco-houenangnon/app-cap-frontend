@@ -3,6 +3,8 @@
  */
 
 // Types d'API
+export * from './document-request.types'
+
 export interface ApiResponse<T = any> {
   data?: T;
   message?: string;

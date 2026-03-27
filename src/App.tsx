@@ -27,6 +27,7 @@ const CahierRoutes = React.lazy(() => import('./views/pages/cahier-texte/CahierR
 const PresenceRoutes = React.lazy(() => import('./views/pages/presence/PresenceRoutes.tsx'))
 const FinanceRoutes = React.lazy(() => import('./views/pages/finance/FinanceRoutes.tsx'))
 const BibliothequeRoutes = React.lazy(() => import('./views/pages/bibliotheque/BibliothequeRoutes.tsx'))
+const DemandesRoutes = React.lazy(() => import('./views/pages/demandes/DemandesRoutes.tsx'))
 const Register = React.lazy(() => import('./views/pages/register/Register.tsx'))
 const Page404 = React.lazy(() => import('./views/pages/page404/Page404.tsx'))
 const Page500 = React.lazy(() => import('./views/pages/page500/Page500.tsx'))
@@ -175,6 +176,19 @@ const App = () => {
                 <ProtectedRoute module={MODULES.BIBLIOTHEQUE}>
                   <DefaultLayout>
                     <BibliothequeRoutes />
+                  </DefaultLayout>
+                </ProtectedRoute>
+              }
+            />
+            {/* ── Module Gestion des Demandes (attestations + bulletins) ── */}
+            {/* Accessible depuis les deux cartes du portail */}
+            <Route path="/demandes-attestations/*" element={<Navigate to="/demandes" replace />} />
+            <Route
+              path="/demandes/*"
+              element={
+                <ProtectedRoute module="demandes">
+                  <DefaultLayout>
+                    <DemandesRoutes />
                   </DefaultLayout>
                 </ProtectedRoute>
               }

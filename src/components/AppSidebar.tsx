@@ -3,6 +3,7 @@ import { useSelector, useDispatch } from 'react-redux'
 import { useLocation, Link } from 'react-router-dom'
 import { getAssetUrl } from '@/utils/assets'
 import { useAuth } from '@/contexts'
+import getWorkflowNavigation from '../_nav/workflow'
 
 import {
   CCloseButton,
@@ -42,6 +43,13 @@ const AppSidebar = () => {
     const path = location.pathname
 
     if (path.startsWith('/inscription')) return inscriptionNavigation
+    // Toutes les entrées du module "Demandes" (depuis portail ou liens directs)
+    if (
+      path.startsWith('/demandes-attestations') ||
+      path.startsWith('/demandes')
+    ) return getWorkflowNavigation(role)
+    // Garder /attestations/demandes pour rétrocompatibilité
+    if (path.startsWith('/attestations/demandes')) return getWorkflowNavigation(role)
     if (path.startsWith('/attestations')) return attestationNavigation
     if (path.startsWith('/notes')) return getNoteNavigation(role)
     if (path.startsWith('/rh')) return rhNavigation
